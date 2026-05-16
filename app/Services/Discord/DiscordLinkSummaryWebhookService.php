@@ -19,10 +19,6 @@ class DiscordLinkSummaryWebhookService
             return;
         }
 
-        if ($this->wasSentSuccessfully($quizLinkId)) {
-            return;
-        }
-
         $link = $this->loadLinkRow($quizLinkId);
         if (! $link) {
             return;
@@ -48,41 +44,43 @@ class DiscordLinkSummaryWebhookService
             return;
         }
 
-        $url = $this->webhookUrlForLink($link);
-        if ($url === '') {
-            return;
-        }
+        $urls = $this->webhookUrlsForLink($link);
+        foreach ($urls as $url) {
+            if ($this->wasSentSuccessfully($quizLinkId, $url)) {
+                continue;
+            }
 
-        $finalStatus = null;
-        $finalBody = null;
-        $allOk = true;
+            $finalStatus = null;
+            $finalBody = null;
+            $allOk = true;
 
-        foreach ($payloadChunks as $payload) {
-            try {
-                $response = Http::timeout(20)->post($url, $payload);
-                $finalStatus = $response->status();
-                $finalBody = $response->body();
+            foreach ($payloadChunks as $payload) {
+                try {
+                    $response = Http::timeout(20)->post($url, $payload);
+                    $finalStatus = $response->status();
+                    $finalBody = $response->body();
 
-                if (! $response->successful()) {
+                    if (! $response->successful()) {
+                        $allOk = false;
+                        Log::error('discord link summary webhook response not successful', [
+                            'quiz_link_id' => $quizLinkId,
+                            'status' => $response->status(),
+                            'body' => $response->body(),
+                        ]);
+                    }
+                } catch (\Throwable $e) {
                     $allOk = false;
-                    Log::error('discord link summary webhook response not successful', [
+                    $finalStatus = null;
+                    $finalBody = $e->getMessage();
+                    Log::error('discord link summary webhook request failed', [
                         'quiz_link_id' => $quizLinkId,
-                        'status' => $response->status(),
-                        'body' => $response->body(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
-            } catch (\Throwable $e) {
-                $allOk = false;
-                $finalStatus = null;
-                $finalBody = $e->getMessage();
-                Log::error('discord link summary webhook request failed', [
-                    'quiz_link_id' => $quizLinkId,
-                    'error' => $e->getMessage(),
-                ]);
             }
-        }
 
-        $this->storeLog($quizLinkId, $url, $payloadChunks, $finalStatus, $finalBody, $allOk);
+            $this->storeLog($quizLinkId, $url, $payloadChunks, $finalStatus, $finalBody, $allOk);
+        }
     }
 
     private function isEnabled(): bool
@@ -96,17 +94,26 @@ class DiscordLinkSummaryWebhookService
         return filter_var($enabled, FILTER_VALIDATE_BOOLEAN);
     }
 
-    private function webhookUrlForLink(object $link): string
+    /**
+     * @return array<int, string>
+     */
+    private function webhookUrlsForLink(object $link): array
     {
         $userUrl = trim((string) ($link->discord_webhook_url ?? ''));
-        if ($userUrl !== '') {
-            return $userUrl;
-        }
+        $defaultUrl = trim((string) env('DISCORD_WEBHOOK_URL', ''));
+        $ceoUrl = trim((string) env('DISCORD_WEBHOOK_CEO_URL', ''));
 
-        return trim((string) env('DISCORD_WEBHOOK_URL', ''));
+        $primaryUrl = $userUrl !== '' ? $userUrl : $defaultUrl;
+
+        return collect([$primaryUrl, $ceoUrl])
+            ->map(fn ($v) => trim((string) $v))
+            ->filter(fn (string $v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
-    private function wasSentSuccessfully(int $quizLinkId): bool
+    private function wasSentSuccessfully(int $quizLinkId, string $url): bool
     {
         if (! Schema::hasTable('discord_link_summary_logs')) {
             return false;
@@ -114,6 +121,7 @@ class DiscordLinkSummaryWebhookService
 
         return DB::table('discord_link_summary_logs')
             ->where('quiz_link_id', $quizLinkId)
+            ->where('webhook_url', $url)
             ->where('is_success', true)
             ->exists();
     }
@@ -267,9 +275,8 @@ class DiscordLinkSummaryWebhookService
         }
 
         DB::table('discord_link_summary_logs')->updateOrInsert(
-            ['quiz_link_id' => $quizLinkId],
+            ['quiz_link_id' => $quizLinkId, 'webhook_url' => $url],
             [
-                'webhook_url' => $url,
                 'payload_json' => json_encode($payloadChunks, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'response_status_code' => $responseStatusCode,
                 'response_body' => $responseBody,

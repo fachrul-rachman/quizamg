@@ -15,54 +15,52 @@ class DiscordResultWebhookService
             return;
         }
 
-        if ($this->wasSentSuccessfully($quizResultId)) {
-            return;
-        }
-
         $row = $this->loadResultRow($quizResultId);
         if (! $row) {
             return;
         }
 
         $payload = $this->buildPayload($row);
-        $url = $this->webhookUrlForRow($row);
-        if ($url === '') {
-            return;
-        }
+        $urls = $this->webhookUrlsForRow($row);
+        foreach ($urls as $url) {
+            if ($this->wasSentSuccessfully($quizResultId, $url)) {
+                continue;
+            }
 
-        try {
-            $response = Http::timeout(20)->post($url, $payload);
+            try {
+                $response = Http::timeout(20)->post($url, $payload);
 
-            $this->storeLog(
-                $quizResultId,
-                $url,
-                $payload,
-                $response->status(),
-                $response->body(),
-                $response->successful()
-            );
+                $this->storeLog(
+                    $quizResultId,
+                    $url,
+                    $payload,
+                    $response->status(),
+                    $response->body(),
+                    $response->successful()
+                );
 
-            if (! $response->successful()) {
-                Log::error('discord webhook response not successful', [
+                if (! $response->successful()) {
+                    Log::error('discord webhook response not successful', [
+                        'quiz_result_id' => $quizResultId,
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                $this->storeLog(
+                    $quizResultId,
+                    $url,
+                    $payload,
+                    null,
+                    $e->getMessage(),
+                    false
+                );
+
+                Log::error('discord webhook request failed', [
                     'quiz_result_id' => $quizResultId,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
+                    'error' => $e->getMessage(),
                 ]);
             }
-        } catch (\Throwable $e) {
-            $this->storeLog(
-                $quizResultId,
-                $url,
-                $payload,
-                null,
-                $e->getMessage(),
-                false
-            );
-
-            Log::error('discord webhook request failed', [
-                'quiz_result_id' => $quizResultId,
-                'error' => $e->getMessage(),
-            ]);
         }
     }
 
@@ -77,14 +75,23 @@ class DiscordResultWebhookService
         return filter_var($enabled, FILTER_VALIDATE_BOOLEAN);
     }
 
-    private function webhookUrlForRow(object $row): string
+    /**
+     * @return array<int, string>
+     */
+    private function webhookUrlsForRow(object $row): array
     {
         $userUrl = trim((string) ($row->discord_webhook_url ?? ''));
-        if ($userUrl !== '') {
-            return $userUrl;
-        }
+        $defaultUrl = trim((string) env('DISCORD_WEBHOOK_URL', ''));
+        $ceoUrl = trim((string) env('DISCORD_WEBHOOK_CEO_URL', ''));
 
-        return trim((string) env('DISCORD_WEBHOOK_URL', ''));
+        $primaryUrl = $userUrl !== '' ? $userUrl : $defaultUrl;
+
+        return collect([$primaryUrl, $ceoUrl])
+            ->map(fn ($v) => trim((string) $v))
+            ->filter(fn (string $v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function loadResultRow(int $quizResultId): ?object
@@ -114,7 +121,7 @@ class DiscordResultWebhookService
             ->first();
     }
 
-    private function wasSentSuccessfully(int $quizResultId): bool
+    private function wasSentSuccessfully(int $quizResultId, string $url): bool
     {
         if (! Schema::hasTable('discord_webhook_logs')) {
             return false;
@@ -122,6 +129,7 @@ class DiscordResultWebhookService
 
         return DB::table('discord_webhook_logs')
             ->where('quiz_result_id', $quizResultId)
+            ->where('webhook_url', $url)
             ->where('is_success', true)
             ->exists();
     }
