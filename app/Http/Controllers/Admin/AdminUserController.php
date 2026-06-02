@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Rules\DiscordWebhookUrlsRule;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,7 +55,7 @@ class AdminUserController extends Controller
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(['super_admin', 'admin'])],
             'is_active' => ['nullable', 'boolean'],
-            'discord_webhook_url' => ['nullable', 'url', 'max:2048', 'starts_with:https://discord.com/api/webhooks/'],
+            'discord_webhook_url' => ['nullable', 'string', 'max:2048', new DiscordWebhookUrlsRule()],
         ]);
 
         User::create([
@@ -86,7 +87,7 @@ class AdminUserController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', Rule::in(['super_admin', 'admin'])],
             'is_active' => ['nullable', 'boolean'],
-            'discord_webhook_url' => ['nullable', 'url', 'max:2048', 'starts_with:https://discord.com/api/webhooks/'],
+            'discord_webhook_url' => ['nullable', 'string', 'max:2048', new DiscordWebhookUrlsRule()],
         ]);
 
         $newRole = (string) $data['role'];

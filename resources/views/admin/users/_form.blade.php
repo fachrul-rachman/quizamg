@@ -47,8 +47,8 @@
         @enderror
     </div>
     <div class="sm:col-span-2">
-        <label class="block text-sm font-medium mb-1">Discord Webhook URL <span class="text-xs text-zinc-500">(opsional)</span></label>
-        <input name="discord_webhook_url" value="{{ old('discord_webhook_url', $managedUser?->discord_webhook_url) }}" placeholder="https://discord.com/api/webhooks/xxx/xxx" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+        <label class="block text-sm font-medium mb-1">Discord Webhook URL <span class="text-xs text-zinc-500">(opsional, pisahkan dengan |, maks 5)</span></label>
+        <input name="discord_webhook_url" value="{{ old('discord_webhook_url', $managedUser?->discord_webhook_url) }}" placeholder="https://discord.com/api/webhooks/xxx/xxx|https://discord.com/api/webhooks/yyy/yyy" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
         @error('discord_webhook_url')
             <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
         @enderror

@@ -80,18 +80,14 @@ class DiscordResultWebhookService
      */
     private function webhookUrlsForRow(object $row): array
     {
-        $userUrl = trim((string) ($row->discord_webhook_url ?? ''));
-        $defaultUrl = trim((string) env('DISCORD_WEBHOOK_URL', ''));
-        $ceoUrl = trim((string) env('DISCORD_WEBHOOK_CEO_URL', ''));
+        $userRaw = (string) ($row->discord_webhook_url ?? '');
+        $defaultRaw = (string) env('DISCORD_WEBHOOK_URL', '');
 
-        $primaryUrl = $userUrl !== '' ? $userUrl : $defaultUrl;
+        $userUrls = DiscordWebhookUrlParser::parseList($userRaw);
+        $defaultUrls = DiscordWebhookUrlParser::parseList($defaultRaw);
 
-        return collect([$primaryUrl, $ceoUrl])
-            ->map(fn ($v) => trim((string) $v))
-            ->filter(fn (string $v) => $v !== '')
-            ->unique()
-            ->values()
-            ->all();
+        // Prefer user-configured URLs; fall back to env default.
+        return $userUrls !== [] ? $userUrls : $defaultUrls;
     }
 
     private function loadResultRow(int $quizResultId): ?object
