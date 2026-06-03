@@ -82,6 +82,7 @@
                             <th class="px-4 py-2 text-left font-medium">Nama Quiz</th>
                             <th class="px-4 py-2 text-left font-medium">Tipe</th>
                             <th class="px-4 py-2 text-left font-medium">Expired</th>
+                            <th class="px-4 py-2 text-left font-medium">Drive Folder</th>
                             <th class="px-4 py-2 text-left font-medium">Attempt</th>
                             <th class="px-4 py-2 text-left font-medium">Token</th>
                             <th class="px-4 py-2 text-left font-medium">Status</th>
@@ -110,6 +111,15 @@
                                 <td class="px-4 py-3 align-top text-sm">
                                     <div class="font-medium">{{ optional($link->expires_at)->format('d M Y') ?: '-' }}</div>
                                     <div class="text-xs text-slate-500">{{ optional($link->expires_at)->format('H:i:s') ?: '' }}</div>
+                                </td>
+                                <td class="px-4 py-3 align-top text-sm">
+                                    @if ($link->usage_type === 'multi' && is_string($link->google_drive_folder_url) && $link->google_drive_folder_url !== '')
+                                        <a href="{{ $link->google_drive_folder_url }}" target="_blank" rel="noreferrer" class="text-blue-700 hover:underline">
+                                            Buka Folder
+                                        </a>
+                                    @else
+                                        <span class="text-zinc-500 dark:text-zinc-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 align-top">
                                     <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">

@@ -91,6 +91,7 @@
                             <th class="px-4 py-2 text-left font-medium">Nama Quiz</th>
                             <th class="px-4 py-2 text-left font-medium">Tipe</th>
                             <th class="px-4 py-2 text-left font-medium">Expired</th>
+                            <th class="px-4 py-2 text-left font-medium">Drive Folder</th>
                             <th class="px-4 py-2 text-left font-medium">Token</th>
                             <th class="px-4 py-2 text-left font-medium">URL Lengkap</th>
                             <th class="px-4 py-2 text-left font-medium">Status</th>
@@ -113,6 +114,15 @@
                                 <td class="px-4 py-2">{{ $link->usage_type === 'multi' ? 'Multi-use' : 'Single-use' }}</td>
                                 <td class="px-4 py-2">
                                     {{ optional($link->expires_at)->format('d M Y H:i') ?: '-' }}
+                                </td>
+                                <td class="px-4 py-2">
+                                    @if ($link->usage_type === 'multi' && is_string($link->google_drive_folder_url) && $link->google_drive_folder_url !== '')
+                                        <a href="{{ $link->google_drive_folder_url }}" target="_blank" rel="noreferrer" class="text-blue-700 hover:underline">
+                                            Buka Folder
+                                        </a>
+                                    @else
+                                        -
+                                    @endif
                                 </td>
                                 <td class="px-4 py-2 font-mono">{{ $link->token }}</td>
                                 <td class="px-4 py-2 font-mono">{{ $url }}</td>

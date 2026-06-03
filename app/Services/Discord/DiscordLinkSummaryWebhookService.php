@@ -132,6 +132,7 @@ class DiscordLinkSummaryWebhookService
                 'quiz_links.id',
                 'quiz_links.usage_type',
                 'quiz_links.expires_at',
+                'quiz_links.google_drive_folder_url',
                 'quizzes.title as quiz_title',
                 'users.discord_webhook_url',
             ])
@@ -171,9 +172,14 @@ class DiscordLinkSummaryWebhookService
 
         $rate = $totalCompleted > 0 ? (int) round(($successCount / $totalCompleted) * 100) : 0;
 
+        $folderUrl = trim((string) ($link->google_drive_folder_url ?? ''));
+
         $lines = [];
         $lines[] = 'Nama Test: '.(string) $link->quiz_title;
         $lines[] = 'Tanggal Expired: '.$expiresAt->format('d/m/y H:i');
+        if ($folderUrl !== '') {
+            $lines[] = 'Folder Hasil: '.$folderUrl;
+        }
         $lines[] = 'List Peserta:';
 
         if ($attemptRows->isEmpty()) {

@@ -60,6 +60,18 @@
                 <div class="text-sm text-zinc-500 dark:text-zinc-400">Expires At</div>
                 <div class="mt-1">{{ optional($link->expires_at)->format('d M Y H:i:s') ?: '-' }}</div>
             </div>
+            <div>
+                <div class="text-sm text-zinc-500 dark:text-zinc-400">Google Drive Folder</div>
+                <div class="mt-1">
+                    @if ($link->usage_type === 'multi' && is_string($link->google_drive_folder_url) && $link->google_drive_folder_url !== '')
+                        <a href="{{ $link->google_drive_folder_url }}" target="_blank" rel="noreferrer" class="text-blue-700 hover:underline">
+                            {{ $link->google_drive_folder_url }}
+                        </a>
+                    @else
+                        <span class="text-zinc-500 dark:text-zinc-400">-</span>
+                    @endif
+                </div>
+            </div>
             <div class="sm:col-span-2">
                 <div class="text-sm text-zinc-500 dark:text-zinc-400">Token</div>
                 <div class="mt-1 font-mono">{{ $link->token }}</div>
