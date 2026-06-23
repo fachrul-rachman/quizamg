@@ -17,6 +17,7 @@ class QuizAttempt extends Model
         'started_at',
         'submitted_at',
         'time_limit_minutes',
+        'quiz_snapshot',
         'status',
     ];
 
@@ -26,6 +27,7 @@ class QuizAttempt extends Model
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'time_limit_minutes' => 'integer',
+            'quiz_snapshot' => 'array',
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Livewire\Participant;
 
 use App\Models\QuizAttempt;
 use App\Models\QuizLink;
+use App\Services\QuizAttemptSnapshotService;
 use App\Support\ParticipantAppliedForNormalizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
@@ -16,12 +17,17 @@ class QuizStart extends Component
     private const SESSION_ATTEMPT_KEY_PREFIX = 'quiz_attempt_id_for_token_';
 
     public string $state = 'loading';
+
     public string $title = '';
+
     public int $durationMinutes = 0;
+
     public bool $instantFeedbackEnabled = false;
+
     public string $finalMessage = '';
 
     public string $participantName = '';
+
     public string $participantAppliedFor = '';
 
     public function mount(string $token): void
@@ -35,6 +41,7 @@ class QuizStart extends Component
 
         if (! $link) {
             $this->state = 'invalid';
+
             return;
         }
 
@@ -43,11 +50,13 @@ class QuizStart extends Component
             $this->finalMessage = $link->status === 'submitted'
                 ? 'Quiz ini sudah selesai dikerjakan.'
                 : 'Waktu pengerjaan quiz ini sudah habis.';
+
             return;
         }
 
         if (! $link->quiz || ! $link->quiz->is_active) {
             $this->state = 'unavailable';
+
             return;
         }
 
@@ -71,6 +80,7 @@ class QuizStart extends Component
 
                 $this->state = 'final';
                 $this->finalMessage = 'Waktu untuk mengerjakan quiz ini sudah habis.';
+
                 return;
             }
 
@@ -81,6 +91,7 @@ class QuizStart extends Component
 
                 if ($attempt->status === 'in_progress') {
                     $this->redirect('/quiz/'.$token.'/work', navigate: false);
+
                     return;
                 }
 
@@ -95,6 +106,7 @@ class QuizStart extends Component
 
                 if ($link->attempt->status === 'in_progress') {
                     $this->redirect('/quiz/'.$token.'/work', navigate: false);
+
                     return;
                 }
             }
@@ -190,6 +202,7 @@ class QuizStart extends Component
         if ($link->usage_type === 'multi' && $this->isMultiUseExpired($link)) {
             $this->state = 'final';
             $this->finalMessage = 'Waktu untuk mengerjakan quiz ini sudah habis.';
+
             return;
         }
 
@@ -257,6 +270,8 @@ class QuizStart extends Component
                 'started_at' => $link->started_at ?? $now,
             ]);
         }
+
+        app(QuizAttemptSnapshotService::class)->ensureForAttempt($attempt);
 
         $this->redirect('/quiz/'.$this->token.'/work', navigate: false);
     }
@@ -338,6 +353,7 @@ class QuizStart extends Component
 
         $startedAt = CarbonImmutable::parse($attempt->started_at);
         $deadline = $startedAt->addMinutes((int) $attempt->time_limit_minutes);
+
         return CarbonImmutable::now()->lt($deadline);
     }
 

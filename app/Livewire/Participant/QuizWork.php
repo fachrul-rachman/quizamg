@@ -3,14 +3,13 @@
 namespace App\Livewire\Participant;
 
 use App\Models\AttemptAnswer;
-use App\Models\Question;
-use App\Models\QuestionOption;
 use App\Models\QuizAttempt;
 use App\Models\QuizLink;
 use App\Models\QuizResult;
 use App\Services\Discord\DiscordResultWebhookService;
 use App\Services\GradeService;
 use App\Services\Pdf\ResultPdfService;
+use App\Services\QuizAttemptSnapshotService;
 use App\Support\DeterministicShuffle;
 use App\Support\QuestionDifficulty;
 use Carbon\CarbonImmutable;
@@ -26,17 +25,27 @@ class QuizWork extends Component
     private const SESSION_ATTEMPT_KEY_PREFIX = 'quiz_attempt_id_for_token_';
 
     public string $state = 'loading';
+
     public string $title = '';
+
     public string $participantName = '';
+
     public string $participantAppliedFor = '';
+
     public int $secondsRemaining = 0;
 
     public int $linkId = 0;
+
     public int $attemptId = 0;
+
     public int $quizId = 0;
+
     public int $quizPk = 0;
+
     public bool $instantFeedbackEnabled = false;
+
     public bool $difficultyLevelsEnabled = false;
+
     public bool $shuffleOptions = false;
 
     public int $step = 1;
@@ -45,24 +54,38 @@ class QuizWork extends Component
     public array $questionIds = [];
 
     public ?int $currentQuestionId = null;
+
     public ?string $currentQuestionText = null;
+
     public ?string $currentQuestionImagePath = null;
+
     public ?string $currentQuestionType = null;
+
     public ?string $currentDifficultyLevel = null;
 
     /** @var array<int, array{id:int,label:string,text:string,image_path:?string,is_correct:bool}> */
     public array $currentOptions = [];
 
     public ?int $selectedOptionId = null;
+
     public ?int $lockedSelectedOptionId = null;
+
     public string $shortAnswerText = '';
+
     public ?bool $currentAnswerIsCorrect = null;
+
     public ?int $currentCorrectOptionId = null;
+
     public bool $currentAnswerLocked = false;
+
     public bool $pendingAutoAdvance = false;
 
     public int $answeredCount = 0;
+
     public int $totalQuestions = 0;
+
+    /** @var array<string, mixed> */
+    public array $quizSnapshot = [];
 
     /** @var array<int, array{question_id:int, step:int}> */
     public array $skippedQuestionButtons = [];
@@ -80,16 +103,19 @@ class QuizWork extends Component
 
         if (! $link) {
             $this->state = 'invalid';
+
             return;
         }
 
         if (in_array($link->status, ['submitted', 'expired'], true)) {
             $this->state = $link->status === 'submitted' ? 'submitted' : 'expired';
+
             return;
         }
 
         if (! $link->quiz || ! $link->quiz->is_active) {
             $this->state = 'unavailable';
+
             return;
         }
 
@@ -102,6 +128,7 @@ class QuizWork extends Component
             }
 
             $this->state = 'expired';
+
             return;
         }
 
@@ -111,41 +138,43 @@ class QuizWork extends Component
 
         if (! $attempt) {
             $this->redirect('/quiz/'.$token, navigate: false);
+
             return;
         }
 
         if ($attempt->status !== 'in_progress') {
             $this->redirect('/quiz/'.$token, navigate: false);
+
             return;
         }
 
-        $this->title = (string) $link->quiz->title;
+        $snapshotService = app(QuizAttemptSnapshotService::class);
+        $this->quizSnapshot = $snapshotService->ensureForAttempt($attempt);
+        $quizSnapshot = $this->quizSnapshot['quiz'] ?? [];
+
+        $this->title = (string) ($quizSnapshot['title'] ?? $link->quiz->title);
         $this->participantName = (string) $attempt->participant_name;
         $this->participantAppliedFor = (string) $attempt->participant_applied_for;
 
         $this->linkId = (int) $link->id;
         $this->attemptId = (int) $attempt->id;
         $this->quizId = (int) $attempt->quiz_id;
-        $this->quizPk = (int) $link->quiz->id;
-        $this->instantFeedbackEnabled = (bool) $link->quiz->instant_feedback_enabled;
-        $this->difficultyLevelsEnabled = (bool) $link->quiz->difficulty_levels_enabled;
-        $this->shuffleOptions = (bool) $link->quiz->shuffle_options;
+        $this->quizPk = (int) ($quizSnapshot['id'] ?? $link->quiz->id);
+        $this->instantFeedbackEnabled = (bool) ($quizSnapshot['instant_feedback_enabled'] ?? $link->quiz->instant_feedback_enabled);
+        $this->difficultyLevelsEnabled = (bool) ($quizSnapshot['difficulty_levels_enabled'] ?? $link->quiz->difficulty_levels_enabled);
+        $this->shuffleOptions = (bool) ($quizSnapshot['shuffle_options'] ?? $link->quiz->shuffle_options);
 
         $this->secondsRemaining = $this->calculateSecondsRemaining($attempt);
         if ($this->secondsRemaining <= 0) {
             $this->finalizeAutoIfNeeded();
+
             return;
         }
 
-        $this->questionIds = $this->buildOrderedQuestionIds(
-            $this->quizId,
-            (bool) $link->quiz->shuffle_questions,
-            (bool) $link->quiz->difficulty_levels_enabled,
-            $this->attemptId,
-            (int) $link->quiz->id
-        );
+        $this->questionIds = $snapshotService->orderedQuestionIds($this->quizSnapshot, $this->attemptId);
         if ($this->questionIds === []) {
             $this->state = 'no_questions';
+
             return;
         }
 
@@ -153,6 +182,7 @@ class QuizWork extends Component
         if (! $this->moveToFirstUnworkedStep()) {
             $this->finalize('submitted');
             $this->redirect('/quiz/'.$this->token.'/done', navigate: false);
+
             return;
         }
         $this->loadStep($this->attemptId, $this->quizId, $this->shuffleOptions, $this->quizPk);
@@ -175,6 +205,7 @@ class QuizWork extends Component
         $attempt = QuizAttempt::query()->find($this->attemptId);
         if (! $attempt) {
             $this->state = 'invalid';
+
             return;
         }
 
@@ -194,6 +225,7 @@ class QuizWork extends Component
             $this->suppressInstantFeedbackLock = true;
             $this->selectedOptionId = (int) $this->lockedSelectedOptionId;
             $this->suppressInstantFeedbackLock = false;
+
             return;
         }
 
@@ -276,6 +308,7 @@ class QuizWork extends Component
         if ($this->instantFeedbackEnabled && $this->currentQuestionType === 'multiple_choice') {
             $this->pendingAutoAdvance = true;
             $this->dispatch('participant-quiz-auto-advance');
+
             return;
         }
 
@@ -355,6 +388,7 @@ class QuizWork extends Component
 
         if (! $isSkipped) {
             $this->refreshProgress();
+
             return;
         }
 
@@ -383,6 +417,7 @@ class QuizWork extends Component
         if (! $this->moveToFirstUnworkedStep()) {
             $this->finalize('submitted');
             $this->redirect('/quiz/'.$this->token.'/done', navigate: false);
+
             return;
         }
 
@@ -398,6 +433,7 @@ class QuizWork extends Component
         $startedAt = CarbonImmutable::parse($attempt->started_at);
         $deadline = $startedAt->addMinutes((int) $attempt->time_limit_minutes);
         $diff = $deadline->diffInSeconds(CarbonImmutable::now(), false) * -1;
+
         return max(0, (int) $diff);
     }
 
@@ -407,6 +443,7 @@ class QuizWork extends Component
         if ($this->attemptId <= 0 || $this->totalQuestions === 0) {
             $this->answeredCount = 0;
             $this->skippedQuestionButtons = [];
+
             return;
         }
 
@@ -432,11 +469,13 @@ class QuizWork extends Component
                         'step' => $stepIndex + 1,
                     ];
                 }
+
                 continue;
             }
 
             if ($a->selected_option_id) {
                 $answered++;
+
                 continue;
             }
 
@@ -453,6 +492,7 @@ class QuizWork extends Component
     {
         if ($this->attemptId <= 0 || $this->questionIds === []) {
             $this->step = 1;
+
             return true;
         }
 
@@ -468,11 +508,13 @@ class QuizWork extends Component
             $a = $answers->get($qid);
             if (! $a) {
                 $this->step = $idx + 1;
+
                 return true;
             }
 
             if ($a->skipped_at) {
                 $firstSkippedStep ??= $idx + 1;
+
                 continue;
             }
 
@@ -485,97 +527,24 @@ class QuizWork extends Component
             }
 
             $this->step = $idx + 1;
+
             return true;
         }
 
         if ($firstSkippedStep !== null) {
             $this->step = $firstSkippedStep;
+
             return true;
         }
 
         return false;
     }
 
-    /**
-     * @return array<int, int>
-     */
-    private function buildOrderedQuestionIds(
-        int $quizId,
-        bool $shuffleQuestions,
-        bool $difficultyLevelsEnabled,
-        int $attemptId,
-        int $quizPk
-    ): array
-    {
-        $rows = DB::table('questions')
-            ->where('quiz_id', $quizId)
-            ->whereNull('deleted_at')
-            ->where('is_active', true)
-            ->orderBy('order_number')
-            ->get(['id', 'difficulty_level'])
-            ->map(fn ($row) => [
-                'id' => (int) $row->id,
-                'difficulty_level' => (string) ($row->difficulty_level ?? QuestionDifficulty::DEFAULT),
-            ])
-            ->all();
-
-        if ($rows === []) {
-            return [];
-        }
-
-        if (! $difficultyLevelsEnabled) {
-            $ids = array_map(fn (array $row) => (int) $row['id'], $rows);
-            if (! $shuffleQuestions || count($ids) <= 1) {
-                return $ids;
-            }
-
-            $seed = $this->seedFromAttempt($attemptId, $quizPk);
-            return DeterministicShuffle::shuffle($ids, $seed);
-        }
-
-        $ids = [];
-        foreach (QuestionDifficulty::LEVELS as $difficultyLevel) {
-            $bucket = array_values(array_filter(
-                $rows,
-                fn (array $row) => (($row['difficulty_level'] ?: QuestionDifficulty::DEFAULT) === $difficultyLevel)
-            ));
-
-            $bucketIds = array_map(fn (array $row) => (int) $row['id'], $bucket);
-            if ($shuffleQuestions && count($bucketIds) > 1) {
-                $bucketIds = DeterministicShuffle::shuffle(
-                    $bucketIds,
-                    $this->seedForDifficulty($attemptId, $quizPk, $difficultyLevel)
-                );
-            }
-
-            array_push($ids, ...$bucketIds);
-        }
-
-        if ($ids !== []) {
-            return $ids;
-        }
-
-        return array_map(fn (array $row) => (int) $row['id'], $rows);
-    }
-
-    private function seedFromAttempt(int $attemptId, int $quizPk): int
-    {
-        $hash = hash('sha256', 'attempt:'.$attemptId.':quiz:'.$quizPk, true);
-        $unpacked = unpack('N', substr($hash, 0, 4));
-        return (int) ($unpacked[1] ?? 1);
-    }
-
     private function seedForQuestion(int $attemptId, int $quizPk, int $questionId): int
     {
         $hash = hash('sha256', 'attempt:'.$attemptId.':quiz:'.$quizPk.':q:'.$questionId, true);
         $unpacked = unpack('N', substr($hash, 0, 4));
-        return (int) ($unpacked[1] ?? 1);
-    }
 
-    private function seedForDifficulty(int $attemptId, int $quizPk, string $difficultyLevel): int
-    {
-        $hash = hash('sha256', 'attempt:'.$attemptId.':quiz:'.$quizPk.':difficulty:'.$difficultyLevel, true);
-        $unpacked = unpack('N', substr($hash, 0, 4));
         return (int) ($unpacked[1] ?? 1);
     }
 
@@ -586,20 +555,16 @@ class QuizWork extends Component
             throw ValidationException::withMessages(['step' => 'Soal tidak ditemukan.']);
         }
 
-        $question = Question::query()
-            ->where('quiz_id', $quizId)
-            ->where('id', $questionId)
-            ->first();
-
+        $question = app(QuizAttemptSnapshotService::class)->question($this->snapshot(), (int) $questionId);
         if (! $question) {
             throw ValidationException::withMessages(['step' => 'Soal tidak ditemukan.']);
         }
 
-        $this->currentQuestionId = (int) $question->id;
-        $this->currentQuestionText = (string) $question->question_text;
-        $this->currentQuestionImagePath = is_string($question->question_image_path) ? $question->question_image_path : null;
-        $this->currentQuestionType = (string) $question->question_type;
-        $this->currentDifficultyLevel = (string) ($question->difficulty_level ?? QuestionDifficulty::DEFAULT);
+        $this->currentQuestionId = (int) $question['id'];
+        $this->currentQuestionText = (string) ($question['question_text'] ?? '');
+        $this->currentQuestionImagePath = is_string($question['question_image_path'] ?? null) ? $question['question_image_path'] : null;
+        $this->currentQuestionType = (string) ($question['question_type'] ?? '');
+        $this->currentDifficultyLevel = (string) (($question['difficulty_level'] ?? null) ?: QuestionDifficulty::DEFAULT);
         $this->currentAnswerIsCorrect = null;
         $this->currentCorrectOptionId = null;
         $this->currentAnswerLocked = false;
@@ -607,7 +572,7 @@ class QuizWork extends Component
 
         $answer = AttemptAnswer::query()
             ->where('quiz_attempt_id', $attemptId)
-            ->where('question_id', $question->id)
+            ->where('question_id', $this->currentQuestionId)
             ->first();
 
         $this->suppressInstantFeedbackLock = true;
@@ -616,23 +581,22 @@ class QuizWork extends Component
         $this->shortAnswerText = (string) ($answer?->answer_text ?? '');
 
         $this->currentOptions = [];
-        if ($question->question_type === 'multiple_choice') {
-            $options = QuestionOption::query()
-                ->where('question_id', $question->id)
-                ->whereNull('deleted_at')
-                ->orderBy('sort_order')
-                ->get(['id', 'option_text', 'option_image_path', 'sort_order', 'is_correct']);
-
-            $items = $options->map(fn ($o) => [
-                'id' => (int) $o->id,
-                'text' => (string) ($o->option_text ?? ''),
-                'image_path' => is_string($o->option_image_path) ? $o->option_image_path : null,
-                'sort_order' => (int) $o->sort_order,
-                'is_correct' => (bool) $o->is_correct,
-            ])->all();
+        if ($this->currentQuestionType === 'multiple_choice') {
+            $items = collect($question['options'] ?? [])
+                ->sortBy('sort_order')
+                ->map(fn ($option) => [
+                    'id' => (int) ($option['id'] ?? 0),
+                    'text' => (string) ($option['option_text'] ?? ''),
+                    'image_path' => is_string($option['option_image_path'] ?? null) ? $option['option_image_path'] : null,
+                    'sort_order' => (int) ($option['sort_order'] ?? 0),
+                    'is_correct' => (bool) ($option['is_correct'] ?? false),
+                ])
+                ->filter(fn ($option) => (int) $option['id'] > 0)
+                ->values()
+                ->all();
 
             if ($shuffleOptions && count($items) > 1) {
-                $seed = $this->seedForQuestion($attemptId, $quizPk, (int) $question->id);
+                $seed = $this->seedForQuestion($attemptId, $quizPk, $this->currentQuestionId);
                 $items = DeterministicShuffle::shuffle($items, $seed);
             }
 
@@ -724,7 +688,7 @@ class QuizWork extends Component
             return;
         }
 
-        $gradeService = new GradeService();
+        $gradeService = new GradeService;
         $resultId = null;
 
         DB::transaction(function () use ($resultStatus, $gradeService, &$resultId): void {
@@ -769,13 +733,10 @@ class QuizWork extends Component
                 $link->save();
             }
 
-            $questionIds = DB::table('questions')
-                ->where('quiz_id', $attempt->quiz_id)
-                ->whereNull('deleted_at')
-                ->where('is_active', true)
-                ->pluck('id')
-                ->map(fn ($v) => (int) $v)
-                ->all();
+            $snapshotService = app(QuizAttemptSnapshotService::class);
+            $snapshot = $snapshotService->ensureForAttempt($attempt);
+            $questionIds = $snapshotService->orderedQuestionIds($snapshot, (int) $attempt->id);
+            $questions = $snapshotService->questionsById($snapshot);
 
             $total = count($questionIds);
 
@@ -785,11 +746,6 @@ class QuizWork extends Component
                 ->get(['id', 'question_id', 'selected_option_id', 'answer_text'])
                 ->keyBy('question_id');
 
-            $questions = Question::query()
-                ->whereIn('id', $questionIds)
-                ->get(['id', 'question_type'])
-                ->keyBy('id');
-
             $correct = 0;
             $wrong = 0;
             $unanswered = 0;
@@ -797,7 +753,7 @@ class QuizWork extends Component
             $isCorrectByQuestionId = [];
 
             foreach ($questionIds as $qid) {
-                $question = $questions->get($qid);
+                $question = $questions[$qid] ?? null;
                 if (! $question) {
                     continue;
                 }
@@ -806,21 +762,21 @@ class QuizWork extends Component
                 if (! $answer) {
                     $unanswered++;
                     $isCorrectByQuestionId[$qid] = false;
+
                     continue;
                 }
 
-                if ($question->question_type === 'multiple_choice') {
+                if (($question['question_type'] ?? '') === 'multiple_choice') {
                     if (! $answer->selected_option_id) {
                         $unanswered++;
                         $isCorrectByQuestionId[$qid] = false;
+
                         continue;
                     }
 
-                    $isCorrect = (bool) DB::table('question_options')
-                        ->where('id', $answer->selected_option_id)
-                        ->where('question_id', $qid)
-                        ->whereNull('deleted_at')
-                        ->value('is_correct');
+                    $isCorrect = collect($question['options'] ?? [])
+                        ->contains(fn ($option) => (int) ($option['id'] ?? 0) === (int) $answer->selected_option_id
+                            && (bool) ($option['is_correct'] ?? false));
 
                     $isCorrectByQuestionId[$qid] = $isCorrect;
 
@@ -837,14 +793,13 @@ class QuizWork extends Component
                 if ($text === '') {
                     $unanswered++;
                     $isCorrectByQuestionId[$qid] = false;
+
                     continue;
                 }
 
                 $normalized = $this->normalizeShortAnswer($text);
-                $exists = DB::table('short_answer_keys')
-                    ->where('question_id', $qid)
-                    ->where('normalized_answer_text', $normalized)
-                    ->exists();
+                $exists = collect($question['short_answers'] ?? [])
+                    ->contains(fn ($key) => (string) ($key['normalized_answer_text'] ?? '') === $normalized);
 
                 $isCorrectByQuestionId[$qid] = $exists;
 
@@ -1003,7 +958,28 @@ class QuizWork extends Component
     {
         $text = mb_strtolower(trim($text));
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+
         return $text;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function snapshot(): array
+    {
+        $snapshot = app(QuizAttemptSnapshotService::class)->validSnapshot($this->quizSnapshot);
+        if ($snapshot !== null) {
+            return $snapshot;
+        }
+
+        $attempt = QuizAttempt::query()->find($this->attemptId);
+        if (! $attempt) {
+            return ['quiz' => [], 'questions' => []];
+        }
+
+        $this->quizSnapshot = app(QuizAttemptSnapshotService::class)->ensureForAttempt($attempt);
+
+        return $this->quizSnapshot;
     }
 
     public function render()

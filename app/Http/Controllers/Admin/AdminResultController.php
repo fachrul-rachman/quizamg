@@ -12,6 +12,7 @@ use App\Models\QuizResult;
 use App\Models\ResultPdf;
 use App\Models\ShortAnswerKey;
 use App\Services\Export\ResultExportXlsxService;
+use App\Services\QuizAttemptSnapshotService;
 use App\Support\DeterministicShuffle;
 use App\Support\ParticipantAppliedForNormalizer;
 use App\Support\QuestionDifficulty;
@@ -121,7 +122,7 @@ class AdminResultController extends Controller
 
         $quizResult->load([
             'quiz:id,title,description,duration_minutes,shuffle_questions,shuffle_options,difficulty_levels_enabled,created_by',
-            'attempt:id,quiz_id,participant_name,participant_applied_for,started_at,submitted_at,time_limit_minutes,status',
+            'attempt:id,quiz_id,participant_name,participant_applied_for,started_at,submitted_at,time_limit_minutes,quiz_snapshot,status',
         ]);
 
         $attempt = $quizResult->attempt;
@@ -245,6 +246,11 @@ class AdminResultController extends Controller
      */
     private function orderedQuestionIds(Quiz $quiz, QuizAttempt $attempt): array
     {
+        $snapshotService = app(QuizAttemptSnapshotService::class);
+        if ($snapshotService->validSnapshot($attempt->quiz_snapshot) !== null) {
+            return $snapshotService->orderedQuestionIds($attempt->quiz_snapshot, (int) $attempt->id);
+        }
+
         $rows = Question::query()
             ->where('quiz_id', $quiz->id)
             ->whereNull('deleted_at')
@@ -301,6 +307,105 @@ class AdminResultController extends Controller
      */
     private function buildQuestionRows(QuizAttempt $attempt, array $questionIds, bool $shuffleOptions): array
     {
+        $snapshotService = app(QuizAttemptSnapshotService::class);
+        $snapshot = $snapshotService->validSnapshot($attempt->quiz_snapshot);
+        if ($snapshot !== null) {
+            $questions = $snapshotService->questionsById($snapshot);
+            $answers = AttemptAnswer::query()
+                ->where('quiz_attempt_id', $attempt->id)
+                ->whereIn('question_id', $questionIds)
+                ->get(['question_id', 'selected_option_id', 'answer_text', 'is_correct'])
+                ->keyBy('question_id');
+
+            $rows = [];
+            $snapshotQuizId = (int) (($snapshot['quiz']['id'] ?? null) ?: $attempt->quiz_id);
+
+            foreach (array_values($questionIds) as $index => $questionId) {
+                $question = $questions[$questionId] ?? null;
+                if (! $question) {
+                    continue;
+                }
+
+                $answer = $answers->get($questionId);
+                $status = 'unanswered';
+                $participantAnswer = null;
+                $correctAnswer = null;
+                $options = [];
+                $acceptedAnswers = [];
+                $questionType = (string) ($question['question_type'] ?? '');
+
+                if ($questionType === 'multiple_choice') {
+                    $optionItems = collect($question['options'] ?? [])
+                        ->sortBy('sort_order')
+                        ->map(fn ($option) => [
+                            'id' => (int) ($option['id'] ?? 0),
+                            'option_key' => (string) ($option['option_key'] ?? ''),
+                            'option_text' => (string) ($option['option_text'] ?? ''),
+                            'option_image_url' => $this->publicStorageUrl(is_string($option['option_image_path'] ?? null) ? $option['option_image_path'] : null),
+                            'is_correct' => (bool) ($option['is_correct'] ?? false),
+                            'sort_order' => (int) ($option['sort_order'] ?? 0),
+                        ])
+                        ->filter(fn ($option) => (int) $option['id'] > 0)
+                        ->values()
+                        ->all();
+
+                    if ($shuffleOptions && count($optionItems) > 1) {
+                        $optionItems = DeterministicShuffle::shuffle(
+                            $optionItems,
+                            $this->seedForQuestion((int) $attempt->id, $snapshotQuizId, $questionId)
+                        );
+                    }
+
+                    $selectedId = $answer?->selected_option_id ? (int) $answer->selected_option_id : null;
+
+                    foreach ($optionItems as $optionItem) {
+                        $isSelected = $selectedId !== null && $selectedId === (int) $optionItem['id'];
+                        $options[] = $optionItem + ['is_selected' => $isSelected];
+
+                        if ($isSelected) {
+                            $participantAnswer = $this->formatOptionAnswer($optionItem);
+                        }
+
+                        if (! empty($optionItem['is_correct'])) {
+                            $correctAnswer = $this->formatOptionAnswer($optionItem);
+                        }
+                    }
+
+                    $status = $participantAnswer === null
+                        ? 'unanswered'
+                        : (($answer?->is_correct ?? false) ? 'correct' : 'wrong');
+                } else {
+                    $participantAnswer = is_string($answer?->answer_text) ? trim($answer->answer_text) : null;
+                    $acceptedAnswers = collect($question['short_answers'] ?? [])
+                        ->pluck('answer_text')
+                        ->map(fn ($text) => (string) $text)
+                        ->values()
+                        ->all();
+                    $correctAnswer = $acceptedAnswers !== [] ? implode(' | ', $acceptedAnswers) : null;
+                    $status = $participantAnswer === null || $participantAnswer === ''
+                        ? 'unanswered'
+                        : (($answer?->is_correct ?? false) ? 'correct' : 'wrong');
+                }
+
+                $difficultyLevel = (string) (($question['difficulty_level'] ?? null) ?: QuestionDifficulty::DEFAULT);
+                $rows[] = [
+                    'no' => $index + 1,
+                    'question_type' => $questionType,
+                    'difficulty_level' => $difficultyLevel,
+                    'difficulty_label' => QuestionDifficulty::label($difficultyLevel),
+                    'question_text' => (string) ($question['question_text'] ?? ''),
+                    'question_image_url' => $this->publicStorageUrl(is_string($question['question_image_path'] ?? null) ? $question['question_image_path'] : null),
+                    'participant_answer' => $participantAnswer,
+                    'correct_answer' => $correctAnswer,
+                    'accepted_answers' => $acceptedAnswers,
+                    'status' => $status,
+                    'options' => $options,
+                ];
+            }
+
+            return $rows;
+        }
+
         $questions = Question::query()
             ->whereIn('id', $questionIds)
             ->get(['id', 'question_text', 'question_image_path', 'difficulty_level', 'question_type'])

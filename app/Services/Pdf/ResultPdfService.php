@@ -13,6 +13,7 @@ use App\Models\ResultPdf;
 use App\Models\ShortAnswerKey;
 use App\Services\GoogleDrive\GoogleDriveFolderService;
 use App\Services\GoogleDrive\GoogleDriveUploadService;
+use App\Services\QuizAttemptSnapshotService;
 use App\Support\DeterministicShuffle;
 use App\Support\QuestionDifficulty;
 use Dompdf\Dompdf;
@@ -39,6 +40,7 @@ class ResultPdfService
         $existing = ResultPdf::query()->where('quiz_result_id', $result->id)->first();
         if ($existing) {
             $this->uploadToGoogleDriveIfEnabled($existing);
+
             return;
         }
 
@@ -50,17 +52,24 @@ class ResultPdfService
         }
 
         try {
+            $snapshotService = app(QuizAttemptSnapshotService::class);
+            $snapshot = $snapshotService->validSnapshot($attempt->quiz_snapshot);
+            $snapshotQuiz = is_array($snapshot) ? ($snapshot['quiz'] ?? []) : [];
             $questionIds = $this->orderedQuestionIds($quiz, $attempt);
-            $rows = $this->buildRows($attempt, $questionIds, (bool) $quiz->shuffle_options);
+            $shuffleOptions = is_array($snapshotQuiz)
+                ? (bool) ($snapshotQuiz['shuffle_options'] ?? $quiz->shuffle_options)
+                : (bool) $quiz->shuffle_options;
+            $rows = $this->buildRows($attempt, $questionIds, $shuffleOptions);
 
             $printedAt = now();
             $score = number_format((float) $result->score_percentage, 2, '.', '');
-            $fileNameBase = $this->sanitizeFileName($quiz->title.' - '.$attempt->participant_name.' - '.$printedAt->format('Y-m-d H-i').' - Score '.$score.' - Grade '.$result->grade_letter);
+            $displayQuiz = (object) array_merge($quiz->toArray(), is_array($snapshotQuiz) ? $snapshotQuiz : []);
+            $fileNameBase = $this->sanitizeFileName($displayQuiz->title.' - '.$attempt->participant_name.' - '.$printedAt->format('Y-m-d H-i').' - Score '.$score.' - Grade '.$result->grade_letter);
             $fileName = $fileNameBase.'.pdf';
             $relativePath = 'results/'.$result->id.'/'.$fileName;
 
             $html = view('pdf.result', [
-                'quiz' => $quiz,
+                'quiz' => $displayQuiz,
                 'attempt' => $attempt,
                 'result' => $result,
                 'rows' => $rows,
@@ -95,6 +104,11 @@ class ResultPdfService
      */
     private function orderedQuestionIds(Quiz $quiz, QuizAttempt $attempt): array
     {
+        $snapshotService = app(QuizAttemptSnapshotService::class);
+        if ($snapshotService->validSnapshot($attempt->quiz_snapshot) !== null) {
+            return $snapshotService->orderedQuestionIds($attempt->quiz_snapshot, (int) $attempt->id);
+        }
+
         $rows = Question::query()
             ->where('quiz_id', $quiz->id)
             ->whereNull('deleted_at')
@@ -118,6 +132,7 @@ class ResultPdfService
             }
 
             $seed = $this->seedFromAttempt((int) $attempt->id, (int) $quiz->id);
+
             return DeterministicShuffle::shuffle($ids, $seed);
         }
 
@@ -158,6 +173,96 @@ class ResultPdfService
      */
     private function buildRows(QuizAttempt $attempt, array $questionIds, bool $shuffleOptions): array
     {
+        $snapshotService = app(QuizAttemptSnapshotService::class);
+        $snapshot = $snapshotService->validSnapshot($attempt->quiz_snapshot);
+        if ($snapshot !== null) {
+            $questions = $snapshotService->questionsById($snapshot);
+            $answers = AttemptAnswer::query()
+                ->where('quiz_attempt_id', $attempt->id)
+                ->whereIn('question_id', $questionIds)
+                ->get(['question_id', 'selected_option_id', 'answer_text', 'is_correct'])
+                ->keyBy('question_id');
+
+            $rows = [];
+            $snapshotQuizId = (int) (($snapshot['quiz']['id'] ?? null) ?: $attempt->quiz_id);
+
+            foreach (array_values($questionIds) as $idx => $qid) {
+                $q = $questions[$qid] ?? null;
+                if (! $q) {
+                    continue;
+                }
+
+                $a = $answers->get($qid);
+                $participantAnswer = null;
+                $correctAnswer = null;
+                $status = 'unanswered';
+                $questionType = (string) ($q['question_type'] ?? '');
+
+                if ($questionType === 'multiple_choice') {
+                    $items = collect($q['options'] ?? [])
+                        ->sortBy('sort_order')
+                        ->map(fn ($option) => [
+                            'id' => (int) ($option['id'] ?? 0),
+                            'text' => (string) ($option['option_text'] ?? ''),
+                            'is_correct' => (bool) ($option['is_correct'] ?? false),
+                            'sort_order' => (int) ($option['sort_order'] ?? 0),
+                        ])
+                        ->filter(fn ($option) => (int) $option['id'] > 0)
+                        ->values()
+                        ->all();
+
+                    if ($shuffleOptions && count($items) > 1) {
+                        $items = DeterministicShuffle::shuffle(
+                            $items,
+                            $this->seedForQuestion((int) $attempt->id, $snapshotQuizId, $qid)
+                        );
+                    }
+
+                    $selectedId = $a?->selected_option_id ? (int) $a->selected_option_id : null;
+                    if ($selectedId) {
+                        foreach ($items as $it) {
+                            if ((int) $it['id'] === $selectedId) {
+                                $participantAnswer = (string) $it['text'];
+                                break;
+                            }
+                        }
+                    }
+
+                    foreach ($items as $it) {
+                        if (! empty($it['is_correct'])) {
+                            $correctAnswer = (string) $it['text'];
+                            break;
+                        }
+                    }
+
+                    $status = ! $participantAnswer
+                        ? 'unanswered'
+                        : (($a?->is_correct ?? false) ? 'correct' : 'wrong');
+                } else {
+                    $participantAnswer = is_string($a?->answer_text) ? trim($a->answer_text) : null;
+                    $keys = collect($q['short_answers'] ?? [])->pluck('answer_text')->all();
+                    $correctAnswer = $keys !== [] ? implode(' | ', $keys) : null;
+
+                    $status = ! $participantAnswer
+                        ? 'unanswered'
+                        : (($a?->is_correct ?? false) ? 'correct' : 'wrong');
+                }
+
+                $difficultyLevel = (string) (($q['difficulty_level'] ?? null) ?: QuestionDifficulty::DEFAULT);
+                $rows[] = [
+                    'no' => $idx + 1,
+                    'difficulty_level' => $difficultyLevel,
+                    'difficulty_label' => QuestionDifficulty::label($difficultyLevel),
+                    'question_text' => (string) ($q['question_text'] ?? ''),
+                    'participant_answer' => $participantAnswer,
+                    'correct_answer' => $correctAnswer,
+                    'status' => $status,
+                ];
+            }
+
+            return $rows;
+        }
+
         $questions = Question::query()
             ->whereIn('id', $questionIds)
             ->get(['id', 'question_text', 'difficulty_level', 'question_type'])
@@ -264,7 +369,7 @@ class ResultPdfService
 
     private function renderPdf(string $html): string
     {
-        $options = new Options();
+        $options = new Options;
         $options->set('isRemoteEnabled', false);
         $options->set('isHtml5ParserEnabled', true);
         $options->set('defaultFont', 'DejaVu Sans');
@@ -290,6 +395,7 @@ class ResultPdfService
 
         if (is_string($pdf->google_drive_file_id) && $pdf->google_drive_file_id !== '') {
             $this->deleteLocalPdfIfPresent($pdf);
+
             return;
         }
 
@@ -359,6 +465,7 @@ class ResultPdfService
         $name = preg_replace('/\s+/', ' ', $name) ?? $name;
         $name = trim($name);
         $name = Str::limit($name, 120, '');
+
         return $name === '' ? 'hasil' : $name;
     }
 
@@ -413,6 +520,7 @@ class ResultPdfService
     {
         $hash = hash('sha256', 'attempt:'.$attemptId.':quiz:'.$quizPk, true);
         $unpacked = unpack('N', substr($hash, 0, 4));
+
         return (int) ($unpacked[1] ?? 1);
     }
 
@@ -420,6 +528,7 @@ class ResultPdfService
     {
         $hash = hash('sha256', 'attempt:'.$attemptId.':quiz:'.$quizPk.':q:'.$questionId, true);
         $unpacked = unpack('N', substr($hash, 0, 4));
+
         return (int) ($unpacked[1] ?? 1);
     }
 
@@ -427,6 +536,7 @@ class ResultPdfService
     {
         $hash = hash('sha256', 'attempt:'.$attemptId.':quiz:'.$quizPk.':difficulty:'.$difficultyLevel, true);
         $unpacked = unpack('N', substr($hash, 0, 4));
+
         return (int) ($unpacked[1] ?? 1);
     }
 }
