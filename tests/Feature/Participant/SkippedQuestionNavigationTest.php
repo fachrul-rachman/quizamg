@@ -85,6 +85,22 @@ it('accepts short answer passed directly when answering current question', funct
     expect($answer->answer_text)->toBe('ok');
 });
 
+it('dispatches question-loaded event when moving to the next question', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    [$quiz, $questions] = createSkippedNavigationQuiz($admin, 2);
+    $link = createSkippedNavigationLinkAndAttempt($quiz, $admin);
+
+    Livewire::test(QuizWork::class, ['token' => $link->token])
+        ->assertSet('state', 'work')
+        ->call('answerCurrent', null, 'ok')
+        ->assertSet('step', 2)
+        ->assertDispatched('participant-question-loaded', function ($event, $params) use ($questions) {
+            return (int) ($params['questionId'] ?? 0) === (int) $questions[1]->id
+                && ($params['questionType'] ?? null) === 'short_answer'
+                && ($params['shortAnswerText'] ?? null) === '';
+        });
+});
+
 /**
  * @return array{0:Quiz,1:array<int, Question>}
  */

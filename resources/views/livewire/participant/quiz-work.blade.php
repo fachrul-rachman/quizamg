@@ -3,6 +3,9 @@
     x-data="participantQuizState({
         initialSeconds: @js($secondsRemaining),
         deadlineIso: @js($deadlineAtIso),
+        currentQuestionId: @js($currentQuestionId),
+        currentQuestionType: @js($currentQuestionType),
+        currentAnswerLocked: @js($currentAnswerLocked),
         selectedOption: @js($selectedOptionId),
         shortAnswer: @js($shortAnswerText),
     })"
@@ -105,7 +108,10 @@
                 </div>
             </div>
 
-            <div class="mt-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+            <div
+                wire:key="participant-question-{{ $currentQuestionId }}-{{ $step }}-{{ $currentQuestionType }}"
+                class="mt-3 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+            >
                 <div class="text-sm text-zinc-600 dark:text-zinc-300 mb-2">Soal</div>
                 @if (filled($currentQuestionText))
                     <div class="whitespace-pre-line">{{ $currentQuestionText }}</div>
@@ -215,11 +221,34 @@
                 return {
                     secondsRemaining: Number(config.initialSeconds || 0),
                     deadlineIso: config.deadlineIso || null,
+                    currentQuestionId: config.currentQuestionId || null,
+                    currentQuestionType: config.currentQuestionType || null,
+                    currentAnswerLocked: !! config.currentAnswerLocked,
                     selectedOptionLocal: config.selectedOption,
                     shortAnswerLocal: config.shortAnswer || '',
                     timerHandle: null,
                     expiryNotified: false,
                     init() {
+                        this.syncQuestionState({
+                            questionId: config.currentQuestionId,
+                            questionType: config.currentQuestionType,
+                            selectedOptionId: config.selectedOption,
+                            shortAnswerText: config.shortAnswer,
+                            isLocked: config.currentAnswerLocked,
+                        });
+
+                        if (!window.__participantQuestionLoadedBound) {
+                            window.__participantQuestionLoadedBound = true;
+                            window.addEventListener('participant-question-loaded', (event) => {
+                                const payload = event.detail && event.detail[0] ? event.detail[0] : event.detail;
+                                if (!payload) {
+                                    return;
+                                }
+
+                                this.syncQuestionState(payload);
+                            });
+                        }
+
                         if (!this.deadlineIso) {
                             return;
                         }
@@ -271,7 +300,18 @@
 
                         return defaultClass;
                     },
+                    syncQuestionState(payload) {
+                        this.currentQuestionId = payload.questionId || null;
+                        this.currentQuestionType = payload.questionType || null;
+                        this.currentAnswerLocked = !!payload.isLocked;
+                        this.selectedOptionLocal = payload.selectedOptionId || null;
+                        this.shortAnswerLocal = payload.shortAnswerText || '';
+                    },
                     canAnswer(questionType) {
+                        if (this.currentAnswerLocked) {
+                            return false;
+                        }
+
                         if (questionType === 'multiple_choice') {
                             return !! this.selectedOptionLocal;
                         }

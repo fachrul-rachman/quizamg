@@ -640,6 +640,15 @@ class QuizWork extends Component
                 $this->lockedSelectedOptionId = (int) $answer->selected_option_id;
             }
         }
+
+        $this->dispatch(
+            'participant-question-loaded',
+            questionId: $this->currentQuestionId,
+            questionType: $this->currentQuestionType,
+            selectedOptionId: $this->selectedOptionId,
+            shortAnswerText: $this->shortAnswerText,
+            isLocked: $this->currentAnswerLocked,
+        );
     }
 
     private function lockCurrentMultipleChoiceAnswer(): void
