@@ -200,7 +200,7 @@
                     </button>
                     <button
                         type="button"
-                        wire:click="answerCurrent"
+                        x-on:click="submitAnswer('{{ $currentQuestionType }}')"
                         x-bind:disabled="!canAnswer('{{ $currentQuestionType }}')"
                         class="rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50 disabled:hover:bg-blue-900"
                     >
@@ -277,6 +277,19 @@
                         }
 
                         return this.shortAnswerLocal.trim() !== '';
+                    },
+                    submitAnswer(questionType) {
+                        if (!this.canAnswer(questionType)) {
+                            return;
+                        }
+
+                        if (questionType === 'multiple_choice') {
+                            this.$wire.set('selectedOptionId', this.selectedOptionLocal, false);
+                        } else {
+                            this.$wire.set('shortAnswerText', this.shortAnswerLocal, false);
+                        }
+
+                        this.$wire.answerCurrent();
                     },
                 };
             }
