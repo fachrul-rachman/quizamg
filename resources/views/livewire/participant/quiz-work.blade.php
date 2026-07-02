@@ -1,13 +1,8 @@
 <div
     class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-    x-data="participantQuizState({
+    x-data="participantTimerState({
         initialSeconds: @js($secondsRemaining),
         deadlineIso: @js($deadlineAtIso),
-        currentQuestionId: @js($currentQuestionId),
-        currentQuestionType: @js($currentQuestionType),
-        currentAnswerLocked: @js($currentAnswerLocked),
-        selectedOption: @js($selectedOptionId),
-        shortAnswer: @js($shortAnswerText),
     })"
 >
     @if ($state === 'invalid')
@@ -63,7 +58,16 @@
             </div>
         @endif
 
-        <div class="mt-6">
+        <div
+            class="mt-6"
+            wire:key="participant-answer-state-{{ $currentQuestionId }}-{{ $step }}-{{ $currentQuestionType }}-{{ $currentAnswerLocked ? 'locked' : 'open' }}-{{ $selectedOptionId ?? 'none' }}"
+            x-data="participantAnswerState({
+                questionType: @js($currentQuestionType),
+                isLocked: @js($currentAnswerLocked),
+                selectedOption: @js($selectedOptionId),
+                shortAnswer: @js($shortAnswerText),
+            })"
+        >
             @if (!empty($skippedQuestionButtons))
                 <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
                     <div class="text-sm font-semibold text-amber-950 dark:text-amber-100">Soal di-skip</div>
@@ -167,7 +171,6 @@
                                     value="{{ $opt['id'] }}"
                                     class="mt-0.5 h-5 w-5 accent-blue-900"
                                     x-model="selectedOptionLocal"
-                                    wire:model.defer="selectedOptionId"
                                     @disabled($instantFeedbackEnabled && $currentAnswerLocked)
                                 />
                             </label>
@@ -185,7 +188,7 @@
                 @else
                     <div class="mt-4">
                         <label class="block text-sm font-medium mb-1">Jawaban</label>
-                        <textarea x-model="shortAnswerLocal" wire:model.defer="shortAnswerText" rows="3" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950"></textarea>
+                        <textarea x-model="shortAnswerLocal" rows="3" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950"></textarea>
                         @error('shortAnswerText')
                             <div class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
                         @enderror
@@ -217,38 +220,13 @@
         </div>
 
         <script>
-            function participantQuizState(config) {
+            function participantTimerState(config) {
                 return {
                     secondsRemaining: Number(config.initialSeconds || 0),
                     deadlineIso: config.deadlineIso || null,
-                    currentQuestionId: config.currentQuestionId || null,
-                    currentQuestionType: config.currentQuestionType || null,
-                    currentAnswerLocked: !! config.currentAnswerLocked,
-                    selectedOptionLocal: config.selectedOption,
-                    shortAnswerLocal: config.shortAnswer || '',
                     timerHandle: null,
                     expiryNotified: false,
                     init() {
-                        this.syncQuestionState({
-                            questionId: config.currentQuestionId,
-                            questionType: config.currentQuestionType,
-                            selectedOptionId: config.selectedOption,
-                            shortAnswerText: config.shortAnswer,
-                            isLocked: config.currentAnswerLocked,
-                        });
-
-                        if (!window.__participantQuestionLoadedBound) {
-                            window.__participantQuestionLoadedBound = true;
-                            window.addEventListener('participant-question-loaded', (event) => {
-                                const payload = event.detail && event.detail[0] ? event.detail[0] : event.detail;
-                                if (!payload) {
-                                    return;
-                                }
-
-                                this.syncQuestionState(payload);
-                            });
-                        }
-
                         if (!this.deadlineIso) {
                             return;
                         }
@@ -300,13 +278,15 @@
 
                         return defaultClass;
                     },
-                    syncQuestionState(payload) {
-                        this.currentQuestionId = payload.questionId || null;
-                        this.currentQuestionType = payload.questionType || null;
-                        this.currentAnswerLocked = !!payload.isLocked;
-                        this.selectedOptionLocal = payload.selectedOptionId || null;
-                        this.shortAnswerLocal = payload.shortAnswerText || '';
-                    },
+                };
+            }
+
+            function participantAnswerState(config) {
+                return {
+                    questionType: config.questionType || null,
+                    currentAnswerLocked: !! config.isLocked,
+                    selectedOptionLocal: config.selectedOption || null,
+                    shortAnswerLocal: config.shortAnswer || '',
                     canAnswer(questionType) {
                         if (this.currentAnswerLocked) {
                             return false;
@@ -320,7 +300,7 @@
                     },
                     async submitAnswer(questionType) {
                         if (!this.canAnswer(questionType)) {
-                            return;
+                            return false;
                         }
 
                         if (questionType === 'multiple_choice') {
