@@ -1,4 +1,12 @@
-<div class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950" @if($state==='work') wire:poll.1s="tick" @endif>
+<div
+    class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+    x-data="participantQuizState({
+        initialSeconds: @js($secondsRemaining),
+        deadlineIso: @js($deadlineAtIso),
+        selectedOption: @js($selectedOptionId),
+        shortAnswer: @js($shortAnswerText),
+    })"
+>
     @if ($state === 'invalid')
         <h1 class="text-xl font-semibold">Link Quiz Tidak Valid</h1>
         <div class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Link yang Anda buka tidak ditemukan atau sudah tidak berlaku. Periksa kembali link dari admin.</div>
@@ -33,9 +41,11 @@
                         ? 'border-amber-200 bg-amber-50 text-amber-900'
                         : 'border-zinc-200 bg-zinc-50 text-zinc-900');
             @endphp
-            <div class="rounded-md border px-3 py-2 text-sm font-semibold {{ $timerWrap }}">
+            <div class="rounded-md border px-3 py-2 text-sm font-semibold" :class="timerClass('{{ $timerWrap }}')">
                 Sisa Waktu:
-                {{ $secondsRemaining >= 3600 ? gmdate('H:i:s', $secondsRemaining) : gmdate('i:s', $secondsRemaining) }}
+                <span x-text="timerDisplay()">
+                    {{ $secondsRemaining >= 3600 ? gmdate('H:i:s', $secondsRemaining) : gmdate('i:s', $secondsRemaining) }}
+                </span>
             </div>
             </div>
         </div>
@@ -150,7 +160,8 @@
                                     name="selected_option"
                                     value="{{ $opt['id'] }}"
                                     class="mt-0.5 h-5 w-5 accent-blue-900"
-                                    wire:model="selectedOptionId"
+                                    x-model="selectedOptionLocal"
+                                    wire:model.defer="selectedOptionId"
                                     @disabled($instantFeedbackEnabled && $currentAnswerLocked)
                                 />
                             </label>
@@ -168,7 +179,7 @@
                 @else
                     <div class="mt-4">
                         <label class="block text-sm font-medium mb-1">Jawaban</label>
-                        <textarea wire:model.debounce.500ms="shortAnswerText" rows="3" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950"></textarea>
+                        <textarea x-model="shortAnswerLocal" wire:model.defer="shortAnswerText" rows="3" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950"></textarea>
                         @error('shortAnswerText')
                             <div class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
                         @enderror
@@ -178,11 +189,6 @@
 
             <div class="mt-4 flex items-center justify-between gap-3">
                 <div class="text-sm text-zinc-600 dark:text-zinc-300">Terjawab: {{ $answeredCount }}/{{ $totalQuestions }}</div>
-                @php
-                    $canAnswer = $currentQuestionType === 'multiple_choice'
-                        ? (bool) $selectedOptionId
-                        : (trim((string) $shortAnswerText) !== '');
-                @endphp
                 <div class="flex items-center gap-2">
                     <button
                         type="button"
@@ -195,7 +201,7 @@
                     <button
                         type="button"
                         wire:click="answerCurrent"
-                        @disabled(! $canAnswer)
+                        x-bind:disabled="!canAnswer('{{ $currentQuestionType }}')"
                         class="rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50 disabled:hover:bg-blue-900"
                     >
                         Jawab
@@ -205,11 +211,84 @@
         </div>
 
         <script>
-            window.addEventListener('participant-quiz-auto-advance', () => {
-                window.setTimeout(() => {
-                    try { @this.call('advanceAfterInstantFeedback'); } catch (e) {}
-                }, 900);
-            });
+            function participantQuizState(config) {
+                return {
+                    secondsRemaining: Number(config.initialSeconds || 0),
+                    deadlineIso: config.deadlineIso || null,
+                    selectedOptionLocal: config.selectedOption,
+                    shortAnswerLocal: config.shortAnswer || '',
+                    timerHandle: null,
+                    expiryNotified: false,
+                    init() {
+                        if (!this.deadlineIso) {
+                            return;
+                        }
+
+                        this.updateTimer();
+                        this.timerHandle = window.setInterval(() => this.updateTimer(), 1000);
+                    },
+                    updateTimer() {
+                        if (!this.deadlineIso) {
+                            return;
+                        }
+
+                        const deadlineMs = Date.parse(this.deadlineIso);
+                        if (Number.isNaN(deadlineMs)) {
+                            return;
+                        }
+
+                        const remaining = Math.max(0, Math.floor((deadlineMs - Date.now()) / 1000));
+                        this.secondsRemaining = remaining;
+
+                        if (remaining === 0 && !this.expiryNotified) {
+                            this.expiryNotified = true;
+                            if (this.timerHandle) {
+                                window.clearInterval(this.timerHandle);
+                            }
+                            this.$wire.tick();
+                        }
+                    },
+                    timerDisplay() {
+                        const total = Math.max(0, Number(this.secondsRemaining || 0));
+                        const hours = Math.floor(total / 3600);
+                        const minutes = Math.floor((total % 3600) / 60);
+                        const seconds = total % 60;
+
+                        if (hours > 0) {
+                            return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+                        }
+
+                        return [minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+                    },
+                    timerClass(defaultClass) {
+                        if (this.secondsRemaining > 0 && this.secondsRemaining <= 60) {
+                            return 'border-rose-200 bg-rose-50 text-rose-900';
+                        }
+
+                        if (this.secondsRemaining > 0 && this.secondsRemaining <= 300) {
+                            return 'border-amber-200 bg-amber-50 text-amber-900';
+                        }
+
+                        return defaultClass;
+                    },
+                    canAnswer(questionType) {
+                        if (questionType === 'multiple_choice') {
+                            return !! this.selectedOptionLocal;
+                        }
+
+                        return this.shortAnswerLocal.trim() !== '';
+                    },
+                };
+            }
+
+            if (!window.__participantQuizAutoAdvanceBound) {
+                window.__participantQuizAutoAdvanceBound = true;
+                window.addEventListener('participant-quiz-auto-advance', () => {
+                    window.setTimeout(() => {
+                        try { @this.call('advanceAfterInstantFeedback'); } catch (e) {}
+                    }, 900);
+                });
+            }
         </script>
     @endif
 </div>

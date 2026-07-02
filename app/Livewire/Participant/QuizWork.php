@@ -84,13 +84,15 @@ class QuizWork extends Component
 
     public int $totalQuestions = 0;
 
-    /** @var array<string, mixed> */
-    public array $quizSnapshot = [];
+    public ?string $deadlineAtIso = null;
 
     /** @var array<int, array{question_id:int, step:int}> */
     public array $skippedQuestionButtons = [];
 
     private bool $suppressInstantFeedbackLock = false;
+
+    /** @var array<string, mixed>|null */
+    private ?array $snapshotCache = null;
 
     public function mount(string $token): void
     {
@@ -149,8 +151,8 @@ class QuizWork extends Component
         }
 
         $snapshotService = app(QuizAttemptSnapshotService::class);
-        $this->quizSnapshot = $snapshotService->ensureForAttempt($attempt);
-        $quizSnapshot = $this->quizSnapshot['quiz'] ?? [];
+        $this->snapshotCache = $snapshotService->ensureForAttempt($attempt);
+        $quizSnapshot = $this->snapshotCache['quiz'] ?? [];
 
         $this->title = (string) ($quizSnapshot['title'] ?? $link->quiz->title);
         $this->participantName = (string) $attempt->participant_name;
@@ -165,13 +167,14 @@ class QuizWork extends Component
         $this->shuffleOptions = (bool) ($quizSnapshot['shuffle_options'] ?? $link->quiz->shuffle_options);
 
         $this->secondsRemaining = $this->calculateSecondsRemaining($attempt);
+        $this->deadlineAtIso = $this->resolveDeadlineIso($attempt);
         if ($this->secondsRemaining <= 0) {
             $this->finalizeAutoIfNeeded();
 
             return;
         }
 
-        $this->questionIds = $snapshotService->orderedQuestionIds($this->quizSnapshot, $this->attemptId);
+        $this->questionIds = $snapshotService->orderedQuestionIds($this->snapshotCache, $this->attemptId);
         if ($this->questionIds === []) {
             $this->state = 'no_questions';
 
@@ -205,11 +208,13 @@ class QuizWork extends Component
         $attempt = QuizAttempt::query()->find($this->attemptId);
         if (! $attempt) {
             $this->state = 'invalid';
+            $this->deadlineAtIso = null;
 
             return;
         }
 
         $this->secondsRemaining = $this->calculateSecondsRemaining($attempt);
+        $this->deadlineAtIso = $this->resolveDeadlineIso($attempt);
         if ($this->secondsRemaining <= 0) {
             $this->finalizeAutoIfNeeded();
         }
@@ -435,6 +440,17 @@ class QuizWork extends Component
         $diff = $deadline->diffInSeconds(CarbonImmutable::now(), false) * -1;
 
         return max(0, (int) $diff);
+    }
+
+    private function resolveDeadlineIso(QuizAttempt $attempt): ?string
+    {
+        if (! $attempt->started_at) {
+            return null;
+        }
+
+        return CarbonImmutable::parse($attempt->started_at)
+            ->addMinutes((int) $attempt->time_limit_minutes)
+            ->toIso8601String();
     }
 
     private function refreshProgress(): void
@@ -967,7 +983,7 @@ class QuizWork extends Component
      */
     private function snapshot(): array
     {
-        $snapshot = app(QuizAttemptSnapshotService::class)->validSnapshot($this->quizSnapshot);
+        $snapshot = app(QuizAttemptSnapshotService::class)->validSnapshot($this->snapshotCache);
         if ($snapshot !== null) {
             return $snapshot;
         }
@@ -977,9 +993,9 @@ class QuizWork extends Component
             return ['quiz' => [], 'questions' => []];
         }
 
-        $this->quizSnapshot = app(QuizAttemptSnapshotService::class)->ensureForAttempt($attempt);
+        $this->snapshotCache = app(QuizAttemptSnapshotService::class)->ensureForAttempt($attempt);
 
-        return $this->quizSnapshot;
+        return $this->snapshotCache;
     }
 
     public function render()
