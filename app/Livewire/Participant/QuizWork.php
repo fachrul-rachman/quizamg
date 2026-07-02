@@ -237,7 +237,7 @@ class QuizWork extends Component
         $this->lockCurrentMultipleChoiceAnswer();
     }
 
-    public function answerCurrent(): void
+    public function answerCurrent(?int $selectedOptionId = null, ?string $shortAnswerText = null): void
     {
         $this->expireAttemptIfMultiUseLinkExpired();
         if ($this->state === 'expired') {
@@ -267,6 +267,9 @@ class QuizWork extends Component
         }
 
         if ($this->currentQuestionType === 'multiple_choice') {
+            $selectedOptionId = $selectedOptionId ?: $this->selectedOptionId;
+            $this->selectedOptionId = $selectedOptionId ? (int) $selectedOptionId : null;
+
             if (! $this->selectedOptionId) {
                 throw ValidationException::withMessages(['selectedOptionId' => 'Pilih salah satu opsi.']);
             }
@@ -292,7 +295,8 @@ class QuizWork extends Component
                 $this->lockedSelectedOptionId = $selectedOptionId;
             }
         } else {
-            $text = trim($this->shortAnswerText);
+            $text = trim($shortAnswerText ?? $this->shortAnswerText);
+            $this->shortAnswerText = $text;
             if ($text === '') {
                 throw ValidationException::withMessages(['shortAnswerText' => 'Jawaban wajib diisi.']);
             }

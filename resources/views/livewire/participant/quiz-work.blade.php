@@ -278,18 +278,16 @@
 
                         return this.shortAnswerLocal.trim() !== '';
                     },
-                    submitAnswer(questionType) {
+                    async submitAnswer(questionType) {
                         if (!this.canAnswer(questionType)) {
                             return;
                         }
 
                         if (questionType === 'multiple_choice') {
-                            this.$wire.set('selectedOptionId', this.selectedOptionLocal, false);
+                            await this.$wire.answerCurrent(Number(this.selectedOptionLocal), null);
                         } else {
-                            this.$wire.set('shortAnswerText', this.shortAnswerLocal, false);
+                            await this.$wire.answerCurrent(null, this.shortAnswerLocal);
                         }
-
-                        this.$wire.answerCurrent();
                     },
                 };
             }

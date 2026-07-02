@@ -66,6 +66,25 @@ it('does not auto-submit while skipped questions remain', function () {
     expect($attempt->status)->toBe('in_progress');
 });
 
+it('accepts short answer passed directly when answering current question', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    [$quiz, $questions] = createSkippedNavigationQuiz($admin, 1);
+    $link = createSkippedNavigationLinkAndAttempt($quiz, $admin);
+
+    Livewire::test(QuizWork::class, ['token' => $link->token])
+        ->assertSet('state', 'work')
+        ->call('answerCurrent', null, 'ok')
+        ->assertRedirect('/quiz/'.$link->token.'/done');
+
+    $answer = AttemptAnswer::query()
+        ->where('quiz_attempt_id', QuizAttempt::query()->where('quiz_link_id', $link->id)->value('id'))
+        ->where('question_id', $questions[0]->id)
+        ->first();
+
+    expect($answer)->not->toBeNull();
+    expect($answer->answer_text)->toBe('ok');
+});
+
 /**
  * @return array{0:Quiz,1:array<int, Question>}
  */
