@@ -52,6 +52,7 @@ class QuizAttemptSnapshotService
                 'shuffle_options' => (bool) $quiz->shuffle_options,
                 'instant_feedback_enabled' => (bool) $quiz->instant_feedback_enabled,
                 'difficulty_levels_enabled' => (bool) $quiz->difficulty_levels_enabled,
+                'show_result_to_participant' => (bool) $quiz->show_result_to_participant,
             ],
             'questions' => $quiz->questions
                 ->filter(fn ($question) => (bool) $question->is_active)

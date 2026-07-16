@@ -897,6 +897,18 @@
 
                 <div class="toggle-row">
                     <div class="toggle-info">
+                        <div class="toggle-label">Tampilkan Skor ke Peserta</div>
+                        <div class="toggle-desc">Peserta melihat score, benar/salah, dan grade setelah selesai</div>
+                        @error('showResultToParticipant') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" wire:model.defer="showResultToParticipant" />
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
                         <div class="toggle-label">Status Aktif</div>
                         <div class="toggle-desc">Quiz dapat diakses oleh peserta</div>
                     </div>
@@ -1232,7 +1244,7 @@
                 return;
             }
 
-            if (firstErrorKey === 'durationMinutes' || firstErrorKey === 'shuffleQuestions' || firstErrorKey === 'shuffleOptions' || firstErrorKey === 'instantFeedbackEnabled' || firstErrorKey === 'isActive') {
+            if (firstErrorKey === 'durationMinutes' || firstErrorKey === 'shuffleQuestions' || firstErrorKey === 'shuffleOptions' || firstErrorKey === 'instantFeedbackEnabled' || firstErrorKey === 'showResultToParticipant' || firstErrorKey === 'isActive') {
                 scrollToTarget('qb-section-settings');
                 return;
             }

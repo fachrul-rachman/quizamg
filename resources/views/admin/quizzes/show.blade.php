@@ -48,6 +48,10 @@
                 <div class="mt-1 font-semibold">{{ $quiz->difficulty_levels_enabled ? 'Ya' : 'Tidak' }}</div>
             </div>
             <div>
+                <div class="text-sm text-zinc-500 dark:text-zinc-400">Tampilkan Skor ke Peserta</div>
+                <div class="mt-1 font-semibold">{{ $quiz->show_result_to_participant ? 'Ya' : 'Tidak' }}</div>
+            </div>
+            <div>
                 <div class="text-sm text-zinc-500 dark:text-zinc-400">Status</div>
                 <div class="mt-1">
                     <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold {{ $quiz->is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-100 text-slate-700' }}">

@@ -21,12 +21,21 @@ class QuizBuilder extends Component
     public ?int $quizId = null;
 
     public string $title = '';
+
     public ?string $description = null;
+
     public int $durationMinutes = 1;
+
     public bool $shuffleQuestions = false;
+
     public bool $shuffleOptions = false;
+
     public bool $instantFeedbackEnabled = false;
+
     public bool $difficultyLevelsEnabled = false;
+
+    public bool $showResultToParticipant = false;
+
     public bool $isActive = true;
 
     /**
@@ -65,6 +74,7 @@ class QuizBuilder extends Component
         $this->shuffleOptions = (bool) $quiz->shuffle_options;
         $this->instantFeedbackEnabled = (bool) $quiz->instant_feedback_enabled;
         $this->difficultyLevelsEnabled = (bool) $quiz->difficulty_levels_enabled;
+        $this->showResultToParticipant = (bool) $quiz->show_result_to_participant;
         $this->isActive = (bool) $quiz->is_active;
 
         $this->questions = $quiz->questions->map(function (Question $question) {
@@ -199,7 +209,7 @@ class QuizBuilder extends Component
         DB::transaction(function (): void {
             $quiz = $this->quizId
                 ? Quiz::query()->findOrFail($this->quizId)
-                : new Quiz();
+                : new Quiz;
 
             $quiz->fill([
                 'title' => $this->title,
@@ -209,6 +219,7 @@ class QuizBuilder extends Component
                 'shuffle_options' => $this->shuffleOptions,
                 'instant_feedback_enabled' => $this->instantFeedbackEnabled,
                 'difficulty_levels_enabled' => $this->difficultyLevelsEnabled,
+                'show_result_to_participant' => $this->showResultToParticipant,
                 'is_active' => $this->isActive,
             ]);
 
@@ -231,7 +242,7 @@ class QuizBuilder extends Component
                 }
 
                 if (! $question) {
-                    $question = new Question();
+                    $question = new Question;
                     $question->quiz_id = $quiz->id;
                     $question->created_by = auth()->id();
                 }
@@ -339,6 +350,7 @@ class QuizBuilder extends Component
             'shuffleOptions' => ['boolean'],
             'instantFeedbackEnabled' => ['boolean'],
             'difficultyLevelsEnabled' => ['boolean'],
+            'showResultToParticipant' => ['boolean'],
             'isActive' => ['boolean'],
         ], [], [
             'title' => 'Nama quiz',
@@ -348,6 +360,7 @@ class QuizBuilder extends Component
             'shuffleOptions' => 'Shuffle Opsi',
             'instantFeedbackEnabled' => 'Tampilkan Jawaban Benar',
             'difficultyLevelsEnabled' => 'Kesulitan Bertingkat',
+            'showResultToParticipant' => 'Tampilkan Skor ke Peserta',
             'isActive' => 'Status Aktif',
         ]);
     }
@@ -455,7 +468,7 @@ class QuizBuilder extends Component
             }
 
             if (! $option) {
-                $option = new QuestionOption();
+                $option = new QuestionOption;
                 $option->question_id = $question->id;
             }
 
@@ -516,6 +529,7 @@ class QuizBuilder extends Component
     {
         $text = mb_strtolower(trim($text));
         $text = preg_replace('/\s+/', ' ', $text) ?? $text;
+
         return $text;
     }
 
