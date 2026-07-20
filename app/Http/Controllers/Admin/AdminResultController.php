@@ -43,7 +43,7 @@ class AdminResultController extends Controller
                 'attempt:id,quiz_id,participant_name,participant_applied_for,status,submitted_at',
             ])
             ->when(! $isSuperAdmin && $user, function ($query) use ($user) {
-                $query->whereHas('quiz', fn ($q) => $q->where('created_by', (int) $user->id));
+                $query->whereHas('quiz', fn ($q) => $q->where('division', $user->division));
             })
             ->when($search !== '', function ($query) use ($search) {
                 $needle = mb_strtolower($search);
@@ -94,11 +94,11 @@ class AdminResultController extends Controller
         });
 
         $quizzes = Quiz::query()
-            ->when(! $isSuperAdmin && $user, fn ($q) => $q->where('created_by', (int) $user->id))
+            ->when($user, fn ($q) => $q->visibleTo($user))
             ->orderBy('title')
             ->get(['id', 'title']);
 
-        $jabatanOptions = $this->jabatanOptionsForUser($isSuperAdmin ? null : (int) ($user?->id ?? 0));
+        $jabatanOptions = $this->jabatanOptionsForDivision($isSuperAdmin ? null : (string) ($user?->division ?? ''));
 
         return view('admin.results.index', [
             'results' => $results,
@@ -118,17 +118,16 @@ class AdminResultController extends Controller
     public function show(QuizResult $quizResult): View
     {
         $user = request()->user();
-        $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
 
         $quizResult->load([
-            'quiz:id,title,description,duration_minutes,shuffle_questions,shuffle_options,difficulty_levels_enabled,created_by',
+            'quiz:id,title,description,duration_minutes,shuffle_questions,shuffle_options,difficulty_levels_enabled,division,created_by',
             'attempt:id,quiz_id,participant_name,participant_applied_for,started_at,submitted_at,time_limit_minutes,quiz_snapshot,status',
         ]);
 
         $attempt = $quizResult->attempt;
         $quiz = $quizResult->quiz;
         abort_unless($attempt && $quiz, 404);
-        if (! $isSuperAdmin && (int) $quiz->created_by !== (int) ($user?->id ?? 0)) {
+        if (! $user || ! $quiz->isAccessibleBy($user)) {
             abort(404);
         }
 
@@ -164,7 +163,7 @@ class AdminResultController extends Controller
             'status' => $status,
             'start_at' => $startAt,
             'end_at' => $endAt,
-        ], $isSuperAdmin ? null : (int) ($user?->id ?? 0), $isSuperAdmin);
+        ], $isSuperAdmin ? null : (string) ($user?->division ?? ''), $isSuperAdmin);
 
         return response()->download($payload['path'], $payload['download_name'])->deleteFileAfterSend(true);
     }
@@ -218,7 +217,7 @@ class AdminResultController extends Controller
     /**
      * @return array<int, string>
      */
-    private function jabatanOptionsForUser(?int $creatorUserId): array
+    private function jabatanOptionsForDivision(?string $division): array
     {
         $query = DB::table('quiz_attempts')
             ->join('quizzes', 'quizzes.id', '=', 'quiz_attempts.quiz_id')
@@ -227,8 +226,8 @@ class AdminResultController extends Controller
             ->selectRaw('DISTINCT quiz_attempts.participant_applied_for as jabatan')
             ->orderBy('jabatan');
 
-        if ($creatorUserId !== null && $creatorUserId > 0) {
-            $query->where('quizzes.created_by', $creatorUserId);
+        if ($division !== null && $division !== '') {
+            $query->where('quizzes.division', $division);
         }
 
         return $query

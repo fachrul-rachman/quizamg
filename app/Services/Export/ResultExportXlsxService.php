@@ -2,8 +2,8 @@
 
 namespace App\Services\Export;
 
-use Carbon\CarbonImmutable;
 use App\Support\ParticipantAppliedForNormalizer;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
@@ -12,12 +12,16 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Style;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ResultExportXlsxService
 {
     private const TEMPLATE_PATH = 'prep/hasil_ujian_v2.xlsx';
+
     private const DATA_START_ROW = 6;
+
     private const TZ = 'Asia/Jakarta';
 
     /**
@@ -29,14 +33,14 @@ class ResultExportXlsxService
      *   end_at?:CarbonImmutable|null
      * }  $filters
      */
-    public function exportToTempFile(array $filters, ?int $creatorUserId, bool $isSuperAdmin): array
+    public function exportToTempFile(array $filters, ?string $division, bool $isSuperAdmin): array
     {
         $templateAbsolutePath = base_path(self::TEMPLATE_PATH);
         if (! File::exists($templateAbsolutePath)) {
             throw new \RuntimeException('Template Excel tidak ditemukan.');
         }
 
-        $rows = $this->loadRows($filters, $creatorUserId, $isSuperAdmin);
+        $rows = $this->loadRows($filters, $division, $isSuperAdmin);
 
         $spreadsheet = IOFactory::load($templateAbsolutePath);
         $sheet = $spreadsheet->getActiveSheet();
@@ -117,7 +121,7 @@ class ResultExportXlsxService
      *   link_drive:string
      * }>
      */
-    private function loadRows(array $filters, ?int $creatorUserId, bool $isSuperAdmin): array
+    private function loadRows(array $filters, ?string $division, bool $isSuperAdmin): array
     {
         $query = DB::table('quiz_results')
             ->join('quiz_attempts', 'quiz_attempts.id', '=', 'quiz_results.quiz_attempt_id')
@@ -133,12 +137,12 @@ class ResultExportXlsxService
                 'quiz_results.total_questions',
                 'quiz_results.grade_letter',
                 'result_pdfs.google_drive_url',
-                'quizzes.created_by as quiz_created_by',
+                'quizzes.division as quiz_division',
             ])
             ->whereNotNull('quiz_attempts.submitted_at');
 
-        if (! $isSuperAdmin && $creatorUserId !== null && $creatorUserId > 0) {
-            $query->where('quizzes.created_by', $creatorUserId);
+        if (! $isSuperAdmin && $division !== null && $division !== '') {
+            $query->where('quizzes.division', $division);
         }
 
         $quizId = $filters['quiz_id'] ?? null;
@@ -189,7 +193,7 @@ class ResultExportXlsxService
             ->all();
     }
 
-    private function applyGradeStyle(\PhpOffice\PhpSpreadsheet\Style\Style $style, string $gradeLetter): void
+    private function applyGradeStyle(Style $style, string $gradeLetter): void
     {
         $hex = match (strtoupper(trim($gradeLetter))) {
             'A' => '16A34A',
@@ -215,7 +219,7 @@ class ResultExportXlsxService
         ]);
     }
 
-    private function applyHeaderMeta(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $filters): void
+    private function applyHeaderMeta(Worksheet $sheet, array $filters): void
     {
         $company = (string) config('app.name');
         $exportedAt = CarbonImmutable::now(self::TZ)->locale('id')->translatedFormat('d F Y');
@@ -233,6 +237,7 @@ class ResultExportXlsxService
         if ($startAt instanceof CarbonImmutable && $endAt instanceof CarbonImmutable) {
             $a = $startAt->locale('id')->translatedFormat('d F Y');
             $b = $endAt->locale('id')->translatedFormat('d F Y');
+
             return $a === $b ? $a : ($a.' - '.$b);
         }
 
@@ -255,6 +260,7 @@ class ResultExportXlsxService
     private function downloadFileName(array $filters): string
     {
         $now = CarbonImmutable::now(self::TZ)->format('Ymd_His');
+
         return 'Export Hasil Test '.$now.'.xlsx';
     }
 }

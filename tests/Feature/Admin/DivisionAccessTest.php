@@ -78,6 +78,7 @@ it('assigns a newly created quiz to the admin division', function () {
     Livewire::test(QuizBuilder::class)
         ->set('title', 'HR Recruitment Quiz')
         ->set('durationMinutes', 30)
+        ->set('division', 'business')
         ->set('questions', [validDivisionQuestion()])
         ->call('save')
         ->assertHasNoErrors()

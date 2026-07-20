@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\GoogleDrive\GoogleDriveOAuthTokenService;
 use App\Models\User;
+use App\Services\GoogleDrive\GoogleDriveOAuthTokenService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +15,7 @@ class AdminDashboardController extends Controller
     {
         $user = request()->user();
         $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
-        $userId = (int) ($user?->id ?? 0);
+        $division = (string) ($user?->division ?? '');
 
         $tz = 'Asia/Jakarta';
         $todayStart = CarbonImmutable::now($tz)->startOfDay();
@@ -24,18 +24,18 @@ class AdminDashboardController extends Controller
         $stats = [
             'total_quizzes' => $isSuperAdmin
                 ? DB::table('quizzes')->count()
-                : DB::table('quizzes')->where('created_by', $userId)->count(),
+                : DB::table('quizzes')->where('division', $division)->count(),
             'total_links' => $isSuperAdmin
                 ? DB::table('quiz_links')->count()
                 : DB::table('quiz_links')
                     ->join('quizzes', 'quizzes.id', '=', 'quiz_links.quiz_id')
-                    ->where('quizzes.created_by', $userId)
+                    ->where('quizzes.division', $division)
                     ->count(),
             'total_results' => $isSuperAdmin
                 ? DB::table('quiz_results')->count()
                 : DB::table('quiz_results')
                     ->join('quizzes', 'quizzes.id', '=', 'quiz_results.quiz_id')
-                    ->where('quizzes.created_by', $userId)
+                    ->where('quizzes.division', $division)
                     ->count(),
             'total_admin_users' => $isSuperAdmin ? User::count() : 0,
         ];
@@ -50,7 +50,7 @@ class AdminDashboardController extends Controller
         $latestResults = DB::table('quiz_results')
             ->join('quizzes', 'quizzes.id', '=', 'quiz_results.quiz_id')
             ->join('quiz_attempts', 'quiz_attempts.id', '=', 'quiz_results.quiz_attempt_id')
-            ->when(! $isSuperAdmin, fn ($q) => $q->where('quizzes.created_by', $userId))
+            ->when(! $isSuperAdmin, fn ($q) => $q->where('quizzes.division', $division))
             ->whereBetween('quiz_results.calculated_at', [$todayStart, $todayEnd])
             ->select([
                 'quiz_results.id',

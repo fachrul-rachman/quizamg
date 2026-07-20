@@ -18,7 +18,7 @@
         </a>
     </div>
 
-    <form method="GET" action="{{ url('/admin/users') }}" class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+    <form method="GET" action="{{ url('/admin/users') }}" class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-5">
         <div class="sm:col-span-2">
             <label class="block text-sm font-medium mb-1">Search</label>
             <input name="search" value="{{ $search }}" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
@@ -32,6 +32,14 @@
             </select>
         </div>
         <div>
+            <label class="block text-sm font-medium mb-1">Divisi</label>
+            <select name="division" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950">
+                <option value="all" @selected($division === 'all')>Semua</option>
+                <option value="business" @selected($division === 'business')>Bisnis</option>
+                <option value="hr" @selected($division === 'hr')>HR</option>
+            </select>
+        </div>
+        <div>
             <label class="block text-sm font-medium mb-1">Status</label>
             <select name="status" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950">
                 <option value="all" @selected($status === 'all')>Semua</option>
@@ -39,7 +47,7 @@
                 <option value="inactive" @selected($status === 'inactive')>Nonaktif</option>
             </select>
         </div>
-        <div class="sm:col-span-4 flex gap-2">
+        <div class="sm:col-span-5 flex gap-2">
             <button type="submit" class="rounded-md bg-blue-900 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">
                 Filter
             </button>
@@ -60,6 +68,7 @@
                             <th class="px-4 py-2 text-left font-medium">Nama</th>
                             <th class="px-4 py-2 text-left font-medium">Email</th>
                             <th class="px-4 py-2 text-left font-medium">Role</th>
+                            <th class="px-4 py-2 text-left font-medium">Divisi</th>
                             <th class="px-4 py-2 text-left font-medium">Status</th>
                             <th class="px-4 py-2 text-left font-medium">Dibuat</th>
                             <th class="px-4 py-2 text-left font-medium">Aksi</th>
@@ -77,6 +86,11 @@
                                 <td class="px-4 py-3 align-top">
                                     <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
                                         {{ $user->role }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 align-top">
+                                    <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                        {{ $user->division === 'hr' ? 'HR' : 'Bisnis' }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 align-top">

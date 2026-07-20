@@ -60,6 +60,10 @@
                 </div>
             </div>
             <div>
+                <div class="text-sm text-zinc-500 dark:text-zinc-400">Divisi</div>
+                <div class="mt-1 font-semibold">{{ $quiz->division === 'hr' ? 'HR' : 'Bisnis' }}</div>
+            </div>
+            <div>
                 <div class="text-sm text-zinc-500 dark:text-zinc-400">Dibuat Oleh</div>
                 <div class="mt-1 font-semibold">{{ $quiz->creator?->name ?? '-' }}</div>
             </div>

@@ -824,6 +824,17 @@
                     <textarea wire:model.defer="description" placeholder="Deskripsi singkat tentang quiz ini..."></textarea>
                     @error('description') <div class="error">{{ $message }}</div> @enderror
                 </div>
+
+                @if (auth()->user()?->isSuperAdmin())
+                    <div class="field" style="margin-top:16px">
+                        <label class="label">Divisi</label>
+                        <select wire:model.defer="division">
+                            <option value="business">Bisnis</option>
+                            <option value="hr">HR</option>
+                        </select>
+                        @error('division') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -1239,7 +1250,7 @@
                 return;
             }
 
-            if (firstErrorKey === 'title' || firstErrorKey === 'description') {
+            if (firstErrorKey === 'title' || firstErrorKey === 'description' || firstErrorKey === 'division') {
                 scrollToTarget('qb-section-info');
                 return;
             }

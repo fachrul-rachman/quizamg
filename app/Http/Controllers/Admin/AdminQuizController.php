@@ -14,8 +14,6 @@ class AdminQuizController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user();
-        $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
-
         $search = trim((string) $request->query('search', ''));
         $status = (string) $request->query('status', 'all');
 
@@ -29,8 +27,8 @@ class AdminQuizController extends Controller
                     ->where('questions.is_active', true),
             ]);
 
-        if (! $isSuperAdmin && $user) {
-            $query->where('created_by', (int) $user->id);
+        if ($user) {
+            $query->visibleTo($user);
         }
 
         if ($search !== '') {
@@ -64,8 +62,7 @@ class AdminQuizController extends Controller
     public function show(Quiz $quiz): View
     {
         $user = request()->user();
-        $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
-        if (! $isSuperAdmin && (int) $quiz->created_by !== (int) ($user?->id ?? 0)) {
+        if (! $user || ! $quiz->isAccessibleBy($user)) {
             abort(404);
         }
 
@@ -85,8 +82,7 @@ class AdminQuizController extends Controller
     public function edit(Quiz $quiz): View
     {
         $user = request()->user();
-        $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
-        if (! $isSuperAdmin && (int) $quiz->created_by !== (int) ($user?->id ?? 0)) {
+        if (! $user || ! $quiz->isAccessibleBy($user)) {
             abort(404);
         }
 
@@ -98,8 +94,7 @@ class AdminQuizController extends Controller
     public function destroy(Quiz $quiz): RedirectResponse
     {
         $user = request()->user();
-        $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
-        if (! $isSuperAdmin && (int) $quiz->created_by !== (int) ($user?->id ?? 0)) {
+        if (! $user || ! $quiz->isAccessibleBy($user)) {
             abort(404);
         }
 

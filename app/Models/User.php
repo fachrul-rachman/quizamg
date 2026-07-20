@@ -12,12 +12,21 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
-#[Fillable(['name', 'email', 'password', 'role', 'is_active', 'discord_webhook_url'])]
+#[Fillable(['name', 'email', 'password', 'role', 'division', 'is_active', 'discord_webhook_url'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
+
+    public const DIVISION_HR = 'hr';
+
+    public const DIVISION_BUSINESS = 'business';
+
+    public const DIVISIONS = [
+        self::DIVISION_HR,
+        self::DIVISION_BUSINESS,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -43,5 +52,16 @@ class User extends Authenticatable
             ->take(2)
             ->map(fn ($word) => Str::substr($word, 0, 1))
             ->implode('');
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function canAccessDivision(?string $division): bool
+    {
+        return $this->isSuperAdmin()
+            || ($division !== null && hash_equals((string) $this->division, $division));
     }
 }

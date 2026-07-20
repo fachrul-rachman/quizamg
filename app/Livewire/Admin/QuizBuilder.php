@@ -24,6 +24,8 @@ class QuizBuilder extends Component
 
     public ?string $description = null;
 
+    public string $division = 'business';
+
     public int $durationMinutes = 1;
 
     public bool $shuffleQuestions = false;
@@ -50,6 +52,7 @@ class QuizBuilder extends Component
         $this->quizId = $quizId;
 
         if ($quizId === null) {
+            $this->division = (string) (auth()->user()?->division ?? 'business');
             $this->questions = [
                 $this->blankQuestion(1),
             ];
@@ -62,13 +65,13 @@ class QuizBuilder extends Component
             ->findOrFail($quizId);
 
         $user = auth()->user();
-        $isSuperAdmin = (($user?->role ?? null) === 'super_admin');
-        if (! $isSuperAdmin && (int) $quiz->created_by !== (int) ($user?->id ?? 0)) {
+        if (! $user || ! $quiz->isAccessibleBy($user)) {
             abort(404);
         }
 
         $this->title = $quiz->title;
         $this->description = $quiz->description;
+        $this->division = $quiz->division;
         $this->durationMinutes = (int) $quiz->duration_minutes;
         $this->shuffleQuestions = (bool) $quiz->shuffle_questions;
         $this->shuffleOptions = (bool) $quiz->shuffle_options;
@@ -210,10 +213,17 @@ class QuizBuilder extends Component
             $quiz = $this->quizId
                 ? Quiz::query()->findOrFail($this->quizId)
                 : new Quiz;
+            $user = auth()->user();
+
+            abort_unless($user, 403);
+            if ($quiz->exists && ! $quiz->isAccessibleBy($user)) {
+                abort(404);
+            }
 
             $quiz->fill([
                 'title' => $this->title,
                 'description' => $this->description,
+                'division' => $user->isSuperAdmin() ? $this->division : $user->division,
                 'duration_minutes' => $this->durationMinutes,
                 'shuffle_questions' => $this->shuffleQuestions,
                 'shuffle_options' => $this->shuffleOptions,
@@ -345,6 +355,7 @@ class QuizBuilder extends Component
         $this->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'division' => ['required', 'in:hr,business'],
             'durationMinutes' => ['required', 'integer', 'min:1'],
             'shuffleQuestions' => ['boolean'],
             'shuffleOptions' => ['boolean'],
@@ -355,6 +366,7 @@ class QuizBuilder extends Component
         ], [], [
             'title' => 'Nama quiz',
             'description' => 'Deskripsi',
+            'division' => 'Divisi',
             'durationMinutes' => 'Durasi',
             'shuffleQuestions' => 'Shuffle Soal',
             'shuffleOptions' => 'Shuffle Opsi',

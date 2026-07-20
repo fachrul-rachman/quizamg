@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,7 @@ class Quiz extends Model
     protected $fillable = [
         'title',
         'description',
+        'division',
         'duration_minutes',
         'shuffle_questions',
         'shuffle_options',
@@ -56,5 +58,19 @@ class Quiz extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isSuperAdmin()) {
+            return $query;
+        }
+
+        return $query->where($query->qualifyColumn('division'), $user->division);
+    }
+
+    public function isAccessibleBy(User $user): bool
+    {
+        return $user->canAccessDivision($this->division);
     }
 }

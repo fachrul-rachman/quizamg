@@ -16,6 +16,7 @@ class AdminUserController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $role = (string) $request->query('role', 'all');
+        $division = (string) $request->query('division', 'all');
         $status = (string) $request->query('status', 'all');
 
         $users = User::query()
@@ -29,6 +30,7 @@ class AdminUserController extends Controller
                 });
             })
             ->when($role !== 'all', fn ($query) => $query->where('role', $role))
+            ->when($division !== 'all', fn ($query) => $query->where('division', $division))
             ->when($status !== 'all', fn ($query) => $query->where('is_active', $status === 'active'))
             ->orderBy('name')
             ->paginate(20)
@@ -38,6 +40,7 @@ class AdminUserController extends Controller
             'users' => $users,
             'search' => $search,
             'role' => $role,
+            'division' => $division,
             'status' => $status,
         ]);
     }
@@ -54,8 +57,9 @@ class AdminUserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class, 'email')],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in(['super_admin', 'admin'])],
+            'division' => ['required', Rule::in(User::DIVISIONS)],
             'is_active' => ['nullable', 'boolean'],
-            'discord_webhook_url' => ['nullable', 'string', 'max:2048', new DiscordWebhookUrlsRule()],
+            'discord_webhook_url' => ['nullable', 'string', 'max:2048', new DiscordWebhookUrlsRule],
         ]);
 
         User::create([
@@ -63,6 +67,7 @@ class AdminUserController extends Controller
             'email' => $data['email'],
             'password' => $data['password'],
             'role' => $data['role'],
+            'division' => $data['division'],
             'is_active' => $request->boolean('is_active', true),
             'discord_webhook_url' => $data['discord_webhook_url'] ?? null,
         ]);
@@ -86,8 +91,9 @@ class AdminUserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique(User::class, 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', Rule::in(['super_admin', 'admin'])],
+            'division' => ['sometimes', Rule::in(User::DIVISIONS)],
             'is_active' => ['nullable', 'boolean'],
-            'discord_webhook_url' => ['nullable', 'string', 'max:2048', new DiscordWebhookUrlsRule()],
+            'discord_webhook_url' => ['nullable', 'string', 'max:2048', new DiscordWebhookUrlsRule],
         ]);
 
         $newRole = (string) $data['role'];
@@ -116,6 +122,7 @@ class AdminUserController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'role' => $newRole,
+            'division' => $data['division'] ?? $user->division,
             'is_active' => $newIsActive,
             'discord_webhook_url' => $data['discord_webhook_url'] ?? null,
         ];

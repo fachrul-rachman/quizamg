@@ -49,6 +49,7 @@
                             <th class="px-4 py-2 text-left font-medium">Shuffle Soal</th>
                             <th class="px-4 py-2 text-left font-medium">Shuffle Opsi</th>
                             <th class="px-4 py-2 text-left font-medium">Status</th>
+                            <th class="px-4 py-2 text-left font-medium">Divisi</th>
                             <th class="px-4 py-2 text-left font-medium">Dibuat Oleh</th>
                             <th class="px-4 py-2 text-left font-medium">Aksi</th>
                         </tr>
@@ -68,6 +69,7 @@
                                         {{ $quiz->is_active ? 'Aktif' : 'Nonaktif' }}
                                     </span>
                                 </td>
+                                <td class="px-4 py-3 align-top">{{ $quiz->division === 'hr' ? 'HR' : 'Bisnis' }}</td>
                                 <td class="px-4 py-3 align-top">
                                     <div class="font-medium">{{ $quiz->creator?->name ?? '-' }}</div>
                                 </td>
