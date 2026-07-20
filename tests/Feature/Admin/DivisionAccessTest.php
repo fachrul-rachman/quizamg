@@ -26,6 +26,45 @@ it('stores the division selected for an admin account', function () {
     ]);
 });
 
+it('stores super admin as business while presenting access to all divisions', function () {
+    $actingSuperAdmin = User::factory()->create([
+        'role' => 'super_admin',
+        'division' => 'business',
+    ]);
+
+    $this->actingAs($actingSuperAdmin)
+        ->post('/admin/users', [
+            'name' => 'Second Super Admin',
+            'email' => 'second.superadmin@example.com',
+            'password' => 'secret123',
+            'role' => 'super_admin',
+            'division' => 'hr',
+            'is_active' => '1',
+        ])
+        ->assertRedirect(route('admin.users.index'));
+
+    $createdSuperAdmin = User::query()
+        ->where('email', 'second.superadmin@example.com')
+        ->firstOrFail();
+
+    expect($createdSuperAdmin->division)->toBe('business');
+
+    createDivisionQuiz($actingSuperAdmin, 'HR Visible to Super Admin', 'hr');
+    createDivisionQuiz($actingSuperAdmin, 'Business Visible to Super Admin', 'business');
+
+    $this->actingAs($createdSuperAdmin)
+        ->get('/admin/quizzes')
+        ->assertOk()
+        ->assertSee('HR Visible to Super Admin')
+        ->assertSee('Business Visible to Super Admin');
+
+    $this->actingAs($actingSuperAdmin)
+        ->get('/admin/users')
+        ->assertOk()
+        ->assertSee('Second Super Admin')
+        ->assertSee('Semua Divisi');
+});
+
 it('shares quizzes within a division and hides quizzes from another division', function () {
     $hrCreator = User::factory()->create(['division' => 'hr']);
     $hrColleague = User::factory()->create(['division' => 'hr']);
