@@ -90,7 +90,7 @@
                                 </td>
                                 <td class="px-4 py-3 align-top">
                                     <span class="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700">
-                                        {{ $user->division === 'hr' ? 'HR' : 'Bisnis' }}
+                                        {{ $user->role === 'super_admin' ? 'Semua Divisi' : ($user->division === 'hr' ? 'HR' : 'Bisnis') }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 align-top">

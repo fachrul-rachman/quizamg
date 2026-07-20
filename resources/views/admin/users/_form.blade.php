@@ -48,10 +48,17 @@
     </div>
     <div>
         <label class="block text-sm font-medium mb-1">Divisi</label>
-        <select name="division" required class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950">
-            <option value="business" @selected(old('division', $managedUser?->division ?? 'business') === 'business')>Bisnis</option>
-            <option value="hr" @selected(old('division', $managedUser?->division) === 'hr')>HR</option>
-        </select>
+        @if ($managedUser?->role === 'super_admin')
+            <input type="hidden" name="division" value="business" />
+            <div class="w-full rounded-md border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-700 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+                Semua Divisi
+            </div>
+        @else
+            <select name="division" required class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950">
+                <option value="business" @selected(old('division', $managedUser?->division ?? 'business') === 'business')>Bisnis</option>
+                <option value="hr" @selected(old('division', $managedUser?->division) === 'hr')>HR</option>
+            </select>
+        @endif
         @error('division')
             <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
         @enderror

@@ -64,4 +64,9 @@ class User extends Authenticatable
         return $this->isSuperAdmin()
             || ($division !== null && hash_equals((string) $this->division, $division));
     }
+
+    public static function divisionForRole(string $role, string $division): string
+    {
+        return $role === 'super_admin' ? self::DIVISION_BUSINESS : $division;
+    }
 }
