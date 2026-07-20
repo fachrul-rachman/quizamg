@@ -38,6 +38,32 @@
                         <div class="text-sm text-zinc-500 dark:text-zinc-400">Jabatan</div>
                         <div class="mt-1 font-semibold">{{ $attempt->participant_applied_for ?: '-' }}</div>
                     </div>
+                    @if ($quiz->division === 'hr')
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Usia</div>
+                            <div class="mt-1 font-semibold">{{ $attempt->participant_age !== null ? $attempt->participant_age.' tahun' : '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Tinggi / Berat Badan</div>
+                            <div class="mt-1 font-semibold">
+                                {{ $attempt->participant_height_cm !== null ? number_format((float) $attempt->participant_height_cm, 2, '.', '').' cm' : '-' }}
+                                /
+                                {{ $attempt->participant_weight_kg !== null ? number_format((float) $attempt->participant_weight_kg, 2, '.', '').' kg' : '-' }}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Pekerjaan Terakhir</div>
+                            <div class="mt-1 font-semibold">{{ $attempt->participant_last_job ?: '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Perusahaan Terakhir</div>
+                            <div class="mt-1 font-semibold">{{ $attempt->participant_last_company ?: '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Domisili Sekarang</div>
+                            <div class="mt-1 font-semibold">{{ $attempt->participant_current_domicile ?: '-' }}</div>
+                        </div>
+                    @endif
                     <div>
                         <div class="text-sm text-zinc-500 dark:text-zinc-400">Nama Quiz</div>
                         <div class="mt-1 font-semibold">{{ $quiz->title }}</div>

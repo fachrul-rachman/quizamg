@@ -47,6 +47,7 @@ class QuizAttemptSnapshotService
                 'id' => (int) $quiz->id,
                 'title' => (string) $quiz->title,
                 'description' => $quiz->description,
+                'division' => (string) $quiz->division,
                 'duration_minutes' => (int) $quiz->duration_minutes,
                 'shuffle_questions' => (bool) $quiz->shuffle_questions,
                 'shuffle_options' => (bool) $quiz->shuffle_options,

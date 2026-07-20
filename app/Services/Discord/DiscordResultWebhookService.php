@@ -100,8 +100,15 @@ class DiscordResultWebhookService
             ->where('quiz_results.id', $quizResultId)
             ->select([
                 'quizzes.title as quiz_title',
+                'quizzes.division as quiz_division',
                 'quiz_attempts.participant_name',
                 'quiz_attempts.participant_applied_for',
+                'quiz_attempts.participant_age',
+                'quiz_attempts.participant_height_cm',
+                'quiz_attempts.participant_weight_kg',
+                'quiz_attempts.participant_last_job',
+                'quiz_attempts.participant_last_company',
+                'quiz_attempts.participant_current_domicile',
                 'users.discord_webhook_url',
                 'quiz_results.correct_answers',
                 'quiz_results.total_questions',
@@ -185,6 +192,40 @@ class DiscordResultWebhookService
             ],
         ];
 
+        if ((string) $row->quiz_division === 'hr') {
+            $age = $row->participant_age !== null
+                ? (int) $row->participant_age.' tahun'
+                : '-';
+            $height = $row->participant_height_cm !== null
+                ? number_format((float) $row->participant_height_cm, 2, '.', '').' cm'
+                : '-';
+            $weight = $row->participant_weight_kg !== null
+                ? number_format((float) $row->participant_weight_kg, 2, '.', '').' kg'
+                : '-';
+
+            array_splice($fields, 2, 0, [[
+                'name' => 'Usia',
+                'value' => $age,
+                'inline' => true,
+            ], [
+                'name' => 'Tinggi / Berat',
+                'value' => $height.' / '.$weight,
+                'inline' => true,
+            ], [
+                'name' => 'Pekerjaan Terakhir',
+                'value' => (string) ($row->participant_last_job ?: '-'),
+                'inline' => true,
+            ], [
+                'name' => 'Perusahaan Terakhir',
+                'value' => (string) ($row->participant_last_company ?: '-'),
+                'inline' => true,
+            ], [
+                'name' => 'Domisili Sekarang',
+                'value' => (string) ($row->participant_current_domicile ?: '-'),
+                'inline' => false,
+            ]]);
+        }
+
         if (is_string($row->google_drive_url) && $row->google_drive_url !== '') {
             $fields[] = [
                 'name' => 'File Hasil',
@@ -210,11 +251,11 @@ class DiscordResultWebhookService
     private function embedColor(string $gradeLetter): int
     {
         return match (strtoupper($gradeLetter)) {
-            'A' => 0x16a34a,
-            'B' => 0x2563eb,
-            'C' => 0xca8a04,
-            'D' => 0xea580c,
-            default => 0xdc2626,
+            'A' => 0x16A34A,
+            'B' => 0x2563EB,
+            'C' => 0xCA8A04,
+            'D' => 0xEA580C,
+            default => 0xDC2626,
         };
     }
 

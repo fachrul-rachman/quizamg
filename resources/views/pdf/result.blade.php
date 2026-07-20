@@ -24,6 +24,11 @@
   .rj-peserta .nama { font-size: 13px; font-weight: 700; color: #1565C0; }
   .rj-peserta .skor { font-size: 21px; font-weight: 800; color: #1565C0; text-align: right; white-space: nowrap; }
   .rj-peserta .skor span { font-size: 13px; font-weight: 400; color: var(--color-text-secondary); }
+  .rj-profile { padding: 10px 18px; border-bottom: 1px solid #E3F2FD; }
+  .rj-profile table { width: 100%; border-collapse: collapse; }
+  .rj-profile td { width: 33.33%; padding: 4px 8px 4px 0; vertical-align: top; }
+  .rj-profile .plbl { display: block; font-size: 8px; color: var(--color-text-secondary); font-weight: 700; text-transform: uppercase; }
+  .rj-profile .pval { display: block; margin-top: 2px; font-size: 10px; font-weight: 600; }
   .rj-stats { border-bottom: 1px solid #E3F2FD; }
   .rj-stats table { width: 100%; border-collapse: collapse; }
   .rj-stats td { text-align: center; padding: 13px 8px; border-right: 1px solid #E3F2FD; }
@@ -79,6 +84,22 @@
         </tr>
       </table>
     </div>
+    @if (($quiz->division ?? null) === 'hr')
+      <div class="rj-profile">
+        <table>
+          <tr>
+            <td><span class="plbl">Usia</span><span class="pval">{{ $attempt->participant_age !== null ? $attempt->participant_age.' tahun' : '-' }}</span></td>
+            <td><span class="plbl">Tinggi Badan</span><span class="pval">{{ $attempt->participant_height_cm !== null ? number_format((float) $attempt->participant_height_cm, 2, '.', '').' cm' : '-' }}</span></td>
+            <td><span class="plbl">Berat Badan</span><span class="pval">{{ $attempt->participant_weight_kg !== null ? number_format((float) $attempt->participant_weight_kg, 2, '.', '').' kg' : '-' }}</span></td>
+          </tr>
+          <tr>
+            <td><span class="plbl">Pekerjaan Terakhir</span><span class="pval">{{ $attempt->participant_last_job ?: '-' }}</span></td>
+            <td><span class="plbl">Perusahaan Terakhir</span><span class="pval">{{ $attempt->participant_last_company ?: '-' }}</span></td>
+            <td><span class="plbl">Domisili Sekarang</span><span class="pval">{{ $attempt->participant_current_domicile ?: '-' }}</span></td>
+          </tr>
+        </table>
+      </div>
+    @endif
     <div class="rj-stats">
       <table>
         <tr>

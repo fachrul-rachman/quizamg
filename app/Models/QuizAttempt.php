@@ -14,6 +14,12 @@ class QuizAttempt extends Model
         'quiz_id',
         'participant_name',
         'participant_applied_for',
+        'participant_age',
+        'participant_height_cm',
+        'participant_weight_kg',
+        'participant_last_job',
+        'participant_last_company',
+        'participant_current_domicile',
         'started_at',
         'submitted_at',
         'time_limit_minutes',
@@ -27,6 +33,9 @@ class QuizAttempt extends Model
             'started_at' => 'datetime',
             'submitted_at' => 'datetime',
             'time_limit_minutes' => 'integer',
+            'participant_age' => 'integer',
+            'participant_height_cm' => 'decimal:2',
+            'participant_weight_kg' => 'decimal:2',
             'quiz_snapshot' => 'array',
         ];
     }

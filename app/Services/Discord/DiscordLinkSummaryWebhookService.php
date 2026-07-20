@@ -134,6 +134,7 @@ class DiscordLinkSummaryWebhookService
                 'quiz_links.expires_at',
                 'quiz_links.google_drive_folder_url',
                 'quizzes.title as quiz_title',
+                'quizzes.division as quiz_division',
                 'users.discord_webhook_url',
             ])
             ->first();
@@ -152,6 +153,12 @@ class DiscordLinkSummaryWebhookService
             ->orderBy('quiz_attempts.submitted_at')
             ->select([
                 'quiz_attempts.participant_name',
+                'quiz_attempts.participant_age',
+                'quiz_attempts.participant_height_cm',
+                'quiz_attempts.participant_weight_kg',
+                'quiz_attempts.participant_last_job',
+                'quiz_attempts.participant_last_company',
+                'quiz_attempts.participant_current_domicile',
                 'quiz_results.correct_answers',
                 'quiz_results.total_questions',
                 'quiz_results.grade_letter',
@@ -191,6 +198,15 @@ class DiscordLinkSummaryWebhookService
                 $grade = strtoupper((string) $r->grade_letter);
                 $name = (string) $r->participant_name;
                 $lines[] = '- '.$name.' -- '.$correct.'/'.$total.' Grade '.$grade;
+
+                if ((string) $link->quiz_division === 'hr') {
+                    $age = $r->participant_age !== null ? (int) $r->participant_age.' th' : '-';
+                    $height = $r->participant_height_cm !== null ? number_format((float) $r->participant_height_cm, 2, '.', '').' cm' : '-';
+                    $weight = $r->participant_weight_kg !== null ? number_format((float) $r->participant_weight_kg, 2, '.', '').' kg' : '-';
+                    $lines[] = '  Usia: '.$age.' | TB/BB: '.$height.' / '.$weight;
+                    $lines[] = '  Pekerjaan: '.(string) ($r->participant_last_job ?: '-').' | Perusahaan: '.(string) ($r->participant_last_company ?: '-');
+                    $lines[] = '  Domisili: '.(string) ($r->participant_current_domicile ?: '-');
+                }
             }
         }
 
@@ -232,6 +248,7 @@ class DiscordLinkSummaryWebhookService
 
             if (mb_strlen($candidate) <= $maxLen) {
                 $current = $candidate;
+
                 continue;
             }
 
@@ -242,6 +259,7 @@ class DiscordLinkSummaryWebhookService
 
             if (mb_strlen($line) <= $maxLen) {
                 $current = $line;
+
                 continue;
             }
 

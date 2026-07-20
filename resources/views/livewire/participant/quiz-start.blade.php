@@ -62,6 +62,50 @@
                     <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
                 @enderror
             </div>
+            @if ($isHrQuiz)
+                <div>
+                    <label class="block text-sm font-medium mb-1">Usia</label>
+                    <input type="number" min="15" max="100" inputmode="numeric" wire:model.defer="participantAge" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantAge')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Tinggi Badan (cm)</label>
+                    <input type="number" min="50" max="250" step="0.01" inputmode="decimal" wire:model.defer="participantHeightCm" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantHeightCm')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Berat Badan (kg)</label>
+                    <input type="number" min="20" max="300" step="0.01" inputmode="decimal" wire:model.defer="participantWeightKg" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantWeightKg')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Pekerjaan Terakhir</label>
+                    <input wire:model.defer="participantLastJob" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantLastJob')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Perusahaan Terakhir</label>
+                    <input wire:model.defer="participantLastCompany" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantLastCompany')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Domisili Sekarang</label>
+                    <input wire:model.defer="participantCurrentDomicile" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantCurrentDomicile')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+            @endif
         </div>
 
         <div class="mt-5 flex items-center gap-2">
