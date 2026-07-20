@@ -129,6 +129,34 @@ it('assigns a newly created quiz to the admin division', function () {
     ]);
 });
 
+it('backfills the agreed production account and quiz divisions', function () {
+    $superAdmin = User::factory()->create([
+        'email' => 'superadmin@amg.com',
+        'role' => 'super_admin',
+        'division' => 'hr',
+    ]);
+    $hrAdmin = User::factory()->create([
+        'email' => 'adminhrd@amg.com',
+        'division' => 'business',
+    ]);
+    $businessAdmin = User::factory()->create([
+        'email' => 'adminbd@amg.com',
+        'division' => 'hr',
+    ]);
+
+    $wpt = createDivisionQuiz($hrAdmin, 'WPT', 'business');
+    $businessQuiz = createDivisionQuiz($businessAdmin, 'Welcome Training', 'business');
+
+    $migration = require database_path('migrations/2026_07_20_000200_backfill_known_production_divisions.php');
+    $migration->up();
+
+    expect($superAdmin->fresh()->division)->toBe('business')
+        ->and($hrAdmin->fresh()->division)->toBe('hr')
+        ->and($businessAdmin->fresh()->division)->toBe('business')
+        ->and($wpt->fresh()->division)->toBe('hr')
+        ->and($businessQuiz->fresh()->division)->toBe('business');
+});
+
 function createDivisionQuiz(User $creator, string $title, string $division): Quiz
 {
     return Quiz::query()->create([
