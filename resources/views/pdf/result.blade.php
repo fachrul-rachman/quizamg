@@ -78,7 +78,9 @@
         <tr>
           <td>
             <span class="lbl">Nama Peserta:</span>
-            <span class="nama">{{ $attempt->participant_name }} ({{ $attempt->participant_applied_for }})</span>
+            <span class="nama">
+              {{ $attempt->participant_name }}@if (($quiz->division ?? null) !== 'hr') ({{ $attempt->participant_applied_for }})@endif
+            </span>
           </td>
           <td class="skor">{{ $correct }} <span>/ {{ $total }}</span></td>
         </tr>
@@ -95,7 +97,10 @@
           <tr>
             <td><span class="plbl">Pekerjaan Terakhir</span><span class="pval">{{ $attempt->participant_last_job ?: '-' }}</span></td>
             <td><span class="plbl">Perusahaan Terakhir</span><span class="pval">{{ $attempt->participant_last_company ?: '-' }}</span></td>
-            <td><span class="plbl">Domisili Sekarang</span><span class="pval">{{ $attempt->participant_current_domicile ?: '-' }}</span></td>
+            <td><span class="plbl">Sejak Kapan Bekerja</span><span class="pval">{{ \App\Support\ParticipantWorkStartFormatter::format($attempt->participant_last_job_started_at) }}</span></td>
+          </tr>
+          <tr>
+            <td colspan="3"><span class="plbl">Domisili</span><span class="pval">{{ $attempt->participant_current_domicile ?: '-' }}</span></td>
           </tr>
         </table>
       </div>

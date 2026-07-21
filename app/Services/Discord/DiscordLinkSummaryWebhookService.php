@@ -2,6 +2,7 @@
 
 namespace App\Services\Discord;
 
+use App\Support\ParticipantWorkStartFormatter;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -158,6 +159,7 @@ class DiscordLinkSummaryWebhookService
                 'quiz_attempts.participant_weight_kg',
                 'quiz_attempts.participant_last_job',
                 'quiz_attempts.participant_last_company',
+                'quiz_attempts.participant_last_job_started_at',
                 'quiz_attempts.participant_current_domicile',
                 'quiz_results.correct_answers',
                 'quiz_results.total_questions',
@@ -205,6 +207,7 @@ class DiscordLinkSummaryWebhookService
                     $weight = $r->participant_weight_kg !== null ? number_format((float) $r->participant_weight_kg, 2, '.', '').' kg' : '-';
                     $lines[] = '  Usia: '.$age.' | TB/BB: '.$height.' / '.$weight;
                     $lines[] = '  Pekerjaan: '.(string) ($r->participant_last_job ?: '-').' | Perusahaan: '.(string) ($r->participant_last_company ?: '-');
+                    $lines[] = '  Sejak Bekerja: '.ParticipantWorkStartFormatter::format($r->participant_last_job_started_at);
                     $lines[] = '  Domisili: '.(string) ($r->participant_current_domicile ?: '-');
                 }
             }

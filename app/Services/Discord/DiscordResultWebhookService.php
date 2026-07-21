@@ -2,6 +2,7 @@
 
 namespace App\Services\Discord;
 
+use App\Support\ParticipantWorkStartFormatter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -108,6 +109,7 @@ class DiscordResultWebhookService
                 'quiz_attempts.participant_weight_kg',
                 'quiz_attempts.participant_last_job',
                 'quiz_attempts.participant_last_company',
+                'quiz_attempts.participant_last_job_started_at',
                 'quiz_attempts.participant_current_domicile',
                 'users.discord_webhook_url',
                 'quiz_results.correct_answers',
@@ -193,6 +195,8 @@ class DiscordResultWebhookService
         ];
 
         if ((string) $row->quiz_division === 'hr') {
+            array_splice($fields, 1, 1);
+
             $age = $row->participant_age !== null
                 ? (int) $row->participant_age.' tahun'
                 : '-';
@@ -203,7 +207,7 @@ class DiscordResultWebhookService
                 ? number_format((float) $row->participant_weight_kg, 2, '.', '').' kg'
                 : '-';
 
-            array_splice($fields, 2, 0, [[
+            array_splice($fields, 1, 0, [[
                 'name' => 'Usia',
                 'value' => $age,
                 'inline' => true,
@@ -220,7 +224,11 @@ class DiscordResultWebhookService
                 'value' => (string) ($row->participant_last_company ?: '-'),
                 'inline' => true,
             ], [
-                'name' => 'Domisili Sekarang',
+                'name' => 'Sejak Kapan Bekerja',
+                'value' => ParticipantWorkStartFormatter::format($row->participant_last_job_started_at),
+                'inline' => true,
+            ], [
+                'name' => 'Domisili',
                 'value' => (string) ($row->participant_current_domicile ?: '-'),
                 'inline' => false,
             ]]);

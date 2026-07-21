@@ -32,6 +32,8 @@ class QuizWork extends Component
 
     public string $participantAppliedFor = '';
 
+    public bool $isHrQuiz = false;
+
     public int $secondsRemaining = 0;
 
     public int $linkId = 0;
@@ -99,7 +101,7 @@ class QuizWork extends Component
         $this->token = $token;
 
         $link = QuizLink::query()
-            ->with(['quiz:id,title,is_active,shuffle_questions,shuffle_options,instant_feedback_enabled,difficulty_levels_enabled', 'attempt'])
+            ->with(['quiz:id,title,is_active,shuffle_questions,shuffle_options,instant_feedback_enabled,difficulty_levels_enabled,division', 'attempt'])
             ->where('token', $token)
             ->first();
 
@@ -157,6 +159,7 @@ class QuizWork extends Component
         $this->title = (string) ($quizSnapshot['title'] ?? $link->quiz->title);
         $this->participantName = (string) $attempt->participant_name;
         $this->participantAppliedFor = (string) $attempt->participant_applied_for;
+        $this->isHrQuiz = ($quizSnapshot['division'] ?? $link->quiz->division) === 'hr';
 
         $this->linkId = (int) $link->id;
         $this->attemptId = (int) $attempt->id;

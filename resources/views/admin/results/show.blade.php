@@ -34,10 +34,12 @@
                         <div class="text-sm text-zinc-500 dark:text-zinc-400">Nama</div>
                         <div class="mt-1 font-semibold">{{ $attempt->participant_name }}</div>
                     </div>
-                    <div>
-                        <div class="text-sm text-zinc-500 dark:text-zinc-400">Jabatan</div>
-                        <div class="mt-1 font-semibold">{{ $attempt->participant_applied_for ?: '-' }}</div>
-                    </div>
+                    @if ($quiz->division !== 'hr')
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Jabatan</div>
+                            <div class="mt-1 font-semibold">{{ $attempt->participant_applied_for ?: '-' }}</div>
+                        </div>
+                    @endif
                     @if ($quiz->division === 'hr')
                         <div>
                             <div class="text-sm text-zinc-500 dark:text-zinc-400">Usia</div>
@@ -60,7 +62,11 @@
                             <div class="mt-1 font-semibold">{{ $attempt->participant_last_company ?: '-' }}</div>
                         </div>
                         <div>
-                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Domisili Sekarang</div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Sejak Kapan Bekerja</div>
+                            <div class="mt-1 font-semibold">{{ \App\Support\ParticipantWorkStartFormatter::format($attempt->participant_last_job_started_at) }}</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Domisili</div>
                             <div class="mt-1 font-semibold">{{ $attempt->participant_current_domicile ?: '-' }}</div>
                         </div>
                     @endif

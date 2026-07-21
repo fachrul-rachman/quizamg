@@ -121,7 +121,7 @@ class AdminResultController extends Controller
 
         $quizResult->load([
             'quiz:id,title,description,duration_minutes,shuffle_questions,shuffle_options,difficulty_levels_enabled,division,created_by',
-            'attempt:id,quiz_id,participant_name,participant_applied_for,participant_age,participant_height_cm,participant_weight_kg,participant_last_job,participant_last_company,participant_current_domicile,started_at,submitted_at,time_limit_minutes,quiz_snapshot,status',
+            'attempt:id,quiz_id,participant_name,participant_applied_for,participant_age,participant_height_cm,participant_weight_kg,participant_last_job,participant_last_company,participant_last_job_started_at,participant_current_domicile,started_at,submitted_at,time_limit_minutes,quiz_snapshot,status',
         ]);
 
         $attempt = $quizResult->attempt;

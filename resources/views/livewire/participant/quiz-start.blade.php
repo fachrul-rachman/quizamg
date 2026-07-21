@@ -49,19 +49,21 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-                <label class="block text-sm font-medium mb-1">Nama Peserta</label>
+                <label class="block text-sm font-medium mb-1">{{ $isHrQuiz ? 'Nama' : 'Nama Peserta' }}</label>
                 <input wire:model.defer="participantName" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
                 @error('participantName')
                     <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
                 @enderror
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">Jabatan</label>
-                <input wire:model.defer="participantAppliedFor" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
-                @error('participantAppliedFor')
-                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
-                @enderror
-            </div>
+            @unless ($isHrQuiz)
+                <div>
+                    <label class="block text-sm font-medium mb-1">Jabatan</label>
+                    <input wire:model.defer="participantAppliedFor" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantAppliedFor')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+            @endunless
             @if ($isHrQuiz)
                 <div>
                     <label class="block text-sm font-medium mb-1">Usia</label>
@@ -99,7 +101,14 @@
                     @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium mb-1">Domisili Sekarang</label>
+                    <label class="block text-sm font-medium mb-1">Sejak Kapan Bekerja</label>
+                    <input type="month" max="{{ now()->format('Y-m') }}" wire:model.defer="participantLastJobStartedMonth" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantLastJobStartedMonth')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Domisili</label>
                     <input wire:model.defer="participantCurrentDomicile" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
                     @error('participantCurrentDomicile')
                         <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>

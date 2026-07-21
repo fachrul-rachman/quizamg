@@ -19,6 +19,7 @@ class QuizAttempt extends Model
         'participant_weight_kg',
         'participant_last_job',
         'participant_last_company',
+        'participant_last_job_started_at',
         'participant_current_domicile',
         'started_at',
         'submitted_at',
@@ -36,6 +37,7 @@ class QuizAttempt extends Model
             'participant_age' => 'integer',
             'participant_height_cm' => 'decimal:2',
             'participant_weight_kg' => 'decimal:2',
+            'participant_last_job_started_at' => 'date',
             'quiz_snapshot' => 'array',
         ];
     }

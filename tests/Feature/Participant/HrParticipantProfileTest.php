@@ -15,14 +15,15 @@ it('shows and requires additional participant fields only for hr quizzes', funct
     [, $businessLink] = createProfileQuizLink('business', 'business-profile-token');
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
+        ->assertDontSee('Jabatan')
         ->assertSee('Usia')
         ->assertSee('Tinggi Badan')
         ->assertSee('Berat Badan')
         ->assertSee('Pekerjaan Terakhir')
         ->assertSee('Perusahaan Terakhir')
-        ->assertSee('Domisili Sekarang')
+        ->assertSee('Sejak Kapan Bekerja')
+        ->assertSee('Domisili')
         ->set('participantName', 'Budi')
-        ->set('participantAppliedFor', 'Staff HR')
         ->call('saveIdentity')
         ->assertHasErrors([
             'participantAge',
@@ -30,6 +31,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
             'participantWeightKg',
             'participantLastJob',
             'participantLastCompany',
+            'participantLastJobStartedMonth',
             'participantCurrentDomicile',
         ]);
 
@@ -37,6 +39,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
         ->assertDontSee('Usia')
         ->assertDontSee('Tinggi Badan')
         ->assertDontSee('Pekerjaan Terakhir')
+        ->assertDontSee('Sejak Kapan Bekerja')
         ->set('participantName', 'Siti')
         ->set('participantAppliedFor', 'Sales')
         ->call('saveIdentity')
@@ -50,18 +53,19 @@ it('stores hr participant profile and discards those fields for business quizzes
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
         ->set('participantName', 'Budi')
-        ->set('participantAppliedFor', 'Staff HR')
         ->set('participantAge', '28')
         ->set('participantHeightCm', '172.5')
         ->set('participantWeightKg', '68.5')
         ->set('participantLastJob', 'HR Generalist')
         ->set('participantLastCompany', 'PT Lama')
+        ->set('participantLastJobStartedMonth', '2023-01')
         ->set('participantCurrentDomicile', 'Jakarta Selatan')
         ->call('saveIdentity')
         ->assertHasNoErrors();
 
     $this->assertDatabaseHas('quiz_attempts', [
         'quiz_link_id' => $hrLink->id,
+        'participant_applied_for' => '',
         'participant_age' => 28,
         'participant_height_cm' => 172.5,
         'participant_weight_kg' => 68.5,
@@ -69,6 +73,9 @@ it('stores hr participant profile and discards those fields for business quizzes
         'participant_last_company' => 'PT Lama',
         'participant_current_domicile' => 'Jakarta Selatan',
     ]);
+
+    $hrAttempt = QuizAttempt::query()->where('quiz_link_id', $hrLink->id)->firstOrFail();
+    expect($hrAttempt->participant_last_job_started_at?->format('Y-m-d'))->toBe('2023-01-01');
 
     [, $businessLink] = createProfileQuizLink('business', 'business-profile-save-token');
 
@@ -80,6 +87,7 @@ it('stores hr participant profile and discards those fields for business quizzes
         ->set('participantWeightKg', '55')
         ->set('participantLastJob', 'HR Generalist')
         ->set('participantLastCompany', 'PT Lama')
+        ->set('participantLastJobStartedMonth', '2023-01')
         ->set('participantCurrentDomicile', 'Jakarta')
         ->call('saveIdentity')
         ->assertHasNoErrors();
@@ -90,6 +98,7 @@ it('stores hr participant profile and discards those fields for business quizzes
 
     expect($businessAttempt->participant_age)->toBeNull()
         ->and($businessAttempt->participant_last_job)->toBeNull()
+        ->and($businessAttempt->participant_last_job_started_at)->toBeNull()
         ->and($businessAttempt->participant_current_domicile)->toBeNull();
 });
 
@@ -101,12 +110,13 @@ it('includes hr participant profile in discord and pdf output', function () {
         'quiz_link_id' => $link->id,
         'quiz_id' => $quiz->id,
         'participant_name' => 'Budi',
-        'participant_applied_for' => 'Staff HR',
+        'participant_applied_for' => '',
         'participant_age' => 28,
         'participant_height_cm' => 172.5,
         'participant_weight_kg' => 68.5,
         'participant_last_job' => 'HR Generalist',
         'participant_last_company' => 'PT Lama',
+        'participant_last_job_started_at' => '2023-01-01',
         'participant_current_domicile' => 'Jakarta Selatan',
         'started_at' => now()->subMinutes(10),
         'submitted_at' => now(),
@@ -140,7 +150,9 @@ it('includes hr participant profile in discord and pdf output', function () {
             && $fields->get('Tinggi / Berat') === '172.50 cm / 68.50 kg'
             && $fields->get('Pekerjaan Terakhir') === 'HR Generalist'
             && $fields->get('Perusahaan Terakhir') === 'PT Lama'
-            && $fields->get('Domisili Sekarang') === 'Jakarta Selatan';
+            && $fields->get('Sejak Kapan Bekerja') === 'Januari 2023'
+            && ! $fields->has('Jabatan')
+            && $fields->get('Domisili') === 'Jakarta Selatan';
     });
 
     $html = view('pdf.result', [
@@ -157,6 +169,7 @@ it('includes hr participant profile in discord and pdf output', function () {
         ->and($html)->toContain('68.50 kg')
         ->and($html)->toContain('HR Generalist')
         ->and($html)->toContain('PT Lama')
+        ->and($html)->toContain('Januari 2023')
         ->and($html)->toContain('Jakarta Selatan');
 });
 
