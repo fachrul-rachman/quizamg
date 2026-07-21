@@ -15,6 +15,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
     [, $businessLink] = createProfileQuizLink('business', 'business-profile-token');
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
+        ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
         ->assertDontSee('Jabatan')
         ->assertSee('Usia')
         ->assertSee('Tinggi Badan')
@@ -36,6 +37,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
         ]);
 
     Livewire::test(QuizStart::class, ['token' => $businessLink->token])
+        ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
         ->assertDontSee('Usia')
         ->assertDontSee('Tinggi Badan')
         ->assertDontSee('Pekerjaan Terakhir')

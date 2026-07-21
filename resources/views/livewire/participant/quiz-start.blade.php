@@ -47,6 +47,10 @@
             </ul>
         </div>
 
+        <div role="alert" class="mb-4 rounded-md border border-rose-950 bg-rose-900 px-4 py-3 text-sm font-semibold text-white shadow-sm">
+            Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.
+        </div>
+
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
                 <label class="block text-sm font-medium mb-1">{{ $isHrQuiz ? 'Nama' : 'Nama Peserta' }}</label>
