@@ -74,7 +74,7 @@
                         <tr>
                             <th class="px-4 py-2 text-left font-medium">Nama Test</th>
                             <th class="px-4 py-2 text-left font-medium">Nama Peserta</th>
-                            <th class="px-4 py-2 text-left font-medium">Jabatan</th>
+                            <th class="px-4 py-2 text-left font-medium">Posisi yang Dilamar</th>
                             <th class="px-4 py-2 text-left font-medium">Score</th>
                             <th class="px-4 py-2 text-left font-medium">Grade</th>
                             <th class="px-4 py-2 text-left font-medium">Status</th>

@@ -152,7 +152,7 @@ class DiscordResultWebhookService
                 'inline' => true,
             ],
             [
-                'name' => 'Jabatan',
+                'name' => 'Posisi yang Dilamar',
                 'value' => (string) $row->participant_applied_for,
                 'inline' => true,
             ],
@@ -195,8 +195,6 @@ class DiscordResultWebhookService
         ];
 
         if ((string) $row->quiz_division === 'hr') {
-            array_splice($fields, 1, 1);
-
             $age = $row->participant_age !== null
                 ? (int) $row->participant_age.' tahun'
                 : '-';
@@ -207,7 +205,7 @@ class DiscordResultWebhookService
                 ? number_format((float) $row->participant_weight_kg, 2, '.', '').' kg'
                 : '-';
 
-            array_splice($fields, 1, 0, [[
+            array_splice($fields, 2, 0, [[
                 'name' => 'Usia',
                 'value' => $age,
                 'inline' => true,

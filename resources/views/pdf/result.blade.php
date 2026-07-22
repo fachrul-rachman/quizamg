@@ -22,6 +22,7 @@
   .rj-peserta td { padding: 0; vertical-align: middle; }
   .rj-peserta .lbl { font-size: 10px; color: var(--color-text-secondary); font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; white-space: nowrap; }
   .rj-peserta .nama { font-size: 13px; font-weight: 700; color: #1565C0; }
+  .rj-peserta .posisi { display: block; margin-top: 2px; font-size: 9px; color: var(--color-text-secondary); }
   .rj-peserta .skor { font-size: 21px; font-weight: 800; color: #1565C0; text-align: right; white-space: nowrap; }
   .rj-peserta .skor span { font-size: 13px; font-weight: 400; color: var(--color-text-secondary); }
   .rj-profile { padding: 10px 18px; border-bottom: 1px solid #E3F2FD; }
@@ -78,9 +79,8 @@
         <tr>
           <td>
             <span class="lbl">Nama Peserta:</span>
-            <span class="nama">
-              {{ $attempt->participant_name }}@if (($quiz->division ?? null) !== 'hr') ({{ $attempt->participant_applied_for }})@endif
-            </span>
+            <span class="nama">{{ $attempt->participant_name }}</span>
+            <span class="posisi">Posisi yang Dilamar: {{ $attempt->participant_applied_for }}</span>
           </td>
           <td class="skor">{{ $correct }} <span>/ {{ $total }}</span></td>
         </tr>

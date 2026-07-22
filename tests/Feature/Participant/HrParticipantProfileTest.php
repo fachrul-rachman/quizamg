@@ -16,7 +16,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
         ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
-        ->assertDontSee('Jabatan')
+        ->assertSee('Posisi yang Dilamar')
         ->assertSee('Usia')
         ->assertSee('Tinggi Badan')
         ->assertSee('Berat Badan')
@@ -27,6 +27,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
         ->set('participantName', 'Budi')
         ->call('saveIdentity')
         ->assertHasErrors([
+            'participantAppliedFor',
             'participantAge',
             'participantHeightCm',
             'participantWeightKg',
@@ -38,6 +39,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
 
     Livewire::test(QuizStart::class, ['token' => $businessLink->token])
         ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
+        ->assertSee('Posisi yang Dilamar')
         ->assertDontSee('Usia')
         ->assertDontSee('Tinggi Badan')
         ->assertDontSee('Pekerjaan Terakhir')
@@ -55,6 +57,7 @@ it('stores hr participant profile and discards those fields for business quizzes
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
         ->set('participantName', 'Budi')
+        ->set('participantAppliedFor', 'HR Generalist')
         ->set('participantAge', '28')
         ->set('participantHeightCm', '172.5')
         ->set('participantWeightKg', '68.5')
@@ -67,7 +70,7 @@ it('stores hr participant profile and discards those fields for business quizzes
 
     $this->assertDatabaseHas('quiz_attempts', [
         'quiz_link_id' => $hrLink->id,
-        'participant_applied_for' => '',
+        'participant_applied_for' => 'HR Generalist',
         'participant_age' => 28,
         'participant_height_cm' => 172.5,
         'participant_weight_kg' => 68.5,
@@ -112,7 +115,7 @@ it('includes hr participant profile in discord and pdf output', function () {
         'quiz_link_id' => $link->id,
         'quiz_id' => $quiz->id,
         'participant_name' => 'Budi',
-        'participant_applied_for' => '',
+        'participant_applied_for' => 'HR Generalist',
         'participant_age' => 28,
         'participant_height_cm' => 172.5,
         'participant_weight_kg' => 68.5,
@@ -153,7 +156,7 @@ it('includes hr participant profile in discord and pdf output', function () {
             && $fields->get('Pekerjaan Terakhir') === 'HR Generalist'
             && $fields->get('Perusahaan Terakhir') === 'PT Lama'
             && $fields->get('Sejak Kapan Bekerja') === 'Januari 2023'
-            && ! $fields->has('Jabatan')
+            && $fields->get('Posisi yang Dilamar') === 'HR Generalist'
             && $fields->get('Domisili') === 'Jakarta Selatan';
     });
 
@@ -166,6 +169,7 @@ it('includes hr participant profile in discord and pdf output', function () {
     ])->render();
 
     expect($html)->toContain('Usia')
+        ->and($html)->toContain('Posisi yang Dilamar')
         ->and($html)->toContain('28 tahun')
         ->and($html)->toContain('172.50 cm')
         ->and($html)->toContain('68.50 kg')

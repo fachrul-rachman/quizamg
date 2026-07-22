@@ -155,9 +155,7 @@ class QuizStart extends Component
 
         $this->validateIdentity($link);
 
-        $this->participantAppliedFor = $this->isHrQuiz
-            ? ''
-            : ParticipantAppliedForNormalizer::normalize($this->participantAppliedFor);
+        $this->participantAppliedFor = ParticipantAppliedForNormalizer::normalize($this->participantAppliedFor);
         $identity = $this->identityPayload($link);
 
         if ($link->usage_type === 'multi') {
@@ -200,9 +198,7 @@ class QuizStart extends Component
 
         $this->validateIdentity($link);
 
-        $this->participantAppliedFor = $this->isHrQuiz
-            ? ''
-            : ParticipantAppliedForNormalizer::normalize($this->participantAppliedFor);
+        $this->participantAppliedFor = ParticipantAppliedForNormalizer::normalize($this->participantAppliedFor);
         $identity = $this->identityPayload($link);
 
         if ($link->usage_type === 'multi' && $this->isMultiUseExpired($link)) {
@@ -280,6 +276,7 @@ class QuizStart extends Component
 
         $rules = [
             'participantName' => ['required', 'string', 'max:255'],
+            'participantAppliedFor' => ['required', 'string', 'max:255'],
         ];
 
         if ($this->isHrQuiz) {
@@ -292,13 +289,11 @@ class QuizStart extends Component
                 'participantLastJobStartedMonth' => ['required', 'date_format:Y-m', 'before_or_equal:'.now()->format('Y-m')],
                 'participantCurrentDomicile' => ['required', 'string', 'max:255'],
             ];
-        } else {
-            $rules['participantAppliedFor'] = ['required', 'string', 'max:255'];
         }
 
         $this->validate($rules, [], [
             'participantName' => 'Nama Peserta',
-            'participantAppliedFor' => 'Jabatan',
+            'participantAppliedFor' => 'Posisi yang Dilamar',
             'participantAge' => 'Usia',
             'participantHeightCm' => 'Tinggi Badan',
             'participantWeightKg' => 'Berat Badan',

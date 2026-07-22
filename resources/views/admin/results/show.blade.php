@@ -34,12 +34,10 @@
                         <div class="text-sm text-zinc-500 dark:text-zinc-400">Nama</div>
                         <div class="mt-1 font-semibold">{{ $attempt->participant_name }}</div>
                     </div>
-                    @if ($quiz->division !== 'hr')
-                        <div>
-                            <div class="text-sm text-zinc-500 dark:text-zinc-400">Jabatan</div>
-                            <div class="mt-1 font-semibold">{{ $attempt->participant_applied_for ?: '-' }}</div>
-                        </div>
-                    @endif
+                    <div>
+                        <div class="text-sm text-zinc-500 dark:text-zinc-400">Posisi yang Dilamar</div>
+                        <div class="mt-1 font-semibold">{{ $attempt->participant_applied_for ?: '-' }}</div>
+                    </div>
                     @if ($quiz->division === 'hr')
                         <div>
                             <div class="text-sm text-zinc-500 dark:text-zinc-400">Usia</div>

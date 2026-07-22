@@ -59,15 +59,13 @@
                     <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
                 @enderror
             </div>
-            @unless ($isHrQuiz)
-                <div>
-                    <label class="block text-sm font-medium mb-1">Jabatan</label>
-                    <input wire:model.defer="participantAppliedFor" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
-                    @error('participantAppliedFor')
-                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
-                    @enderror
-                </div>
-            @endunless
+            <div>
+                <label class="block text-sm font-medium mb-1">Posisi yang Dilamar</label>
+                <input wire:model.defer="participantAppliedFor" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                @error('participantAppliedFor')
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                @enderror
+            </div>
             @if ($isHrQuiz)
                 <div>
                     <label class="block text-sm font-medium mb-1">Usia</label>

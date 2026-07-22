@@ -15,7 +15,7 @@
     <form method="GET" action="{{ url('/admin/results') }}" class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-6">
         <div class="sm:col-span-2">
             <label class="block text-sm font-medium mb-1">Search</label>
-            <input name="search" value="{{ $search }}" placeholder="Nama peserta, jabatan, atau nama quiz" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+            <input name="search" value="{{ $search }}" placeholder="Nama peserta, posisi yang dilamar, atau nama quiz" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
         </div>
         <div>
             <label class="block text-sm font-medium mb-1">Quiz</label>
@@ -44,7 +44,7 @@
             </select>
         </div>
         <div>
-            <label class="block text-sm font-medium mb-1">Jabatan</label>
+            <label class="block text-sm font-medium mb-1">Posisi yang Dilamar</label>
             <select name="jabatan" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950">
                 <option value="">Semua</option>
                 @foreach ($jabatanOptions as $opt)

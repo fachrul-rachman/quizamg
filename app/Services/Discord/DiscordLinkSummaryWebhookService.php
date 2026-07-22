@@ -154,6 +154,7 @@ class DiscordLinkSummaryWebhookService
             ->orderBy('quiz_attempts.submitted_at')
             ->select([
                 'quiz_attempts.participant_name',
+                'quiz_attempts.participant_applied_for',
                 'quiz_attempts.participant_age',
                 'quiz_attempts.participant_height_cm',
                 'quiz_attempts.participant_weight_kg',
@@ -200,6 +201,7 @@ class DiscordLinkSummaryWebhookService
                 $grade = strtoupper((string) $r->grade_letter);
                 $name = (string) $r->participant_name;
                 $lines[] = '- '.$name.' -- '.$correct.'/'.$total.' Grade '.$grade;
+                $lines[] = '  Posisi yang Dilamar: '.(string) ($r->participant_applied_for ?: '-');
 
                 if ((string) $link->quiz_division === 'hr') {
                     $age = $r->participant_age !== null ? (int) $r->participant_age.' th' : '-';
