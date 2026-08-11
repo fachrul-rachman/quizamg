@@ -16,6 +16,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
         ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
+        ->assertSee('Email yang Tercantum di CV')
         ->assertSee('Posisi yang Dilamar')
         ->assertSee('Usia')
         ->assertSee('Tinggi Badan')
@@ -27,6 +28,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
         ->set('participantName', 'Budi')
         ->call('saveIdentity')
         ->assertHasErrors([
+            'participantCvEmail',
             'participantAppliedFor',
             'participantAge',
             'participantHeightCm',
@@ -40,6 +42,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
     Livewire::test(QuizStart::class, ['token' => $businessLink->token])
         ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
         ->assertSee('Posisi yang Dilamar')
+        ->assertDontSee('Email yang Tercantum di CV')
         ->assertDontSee('Usia')
         ->assertDontSee('Tinggi Badan')
         ->assertDontSee('Pekerjaan Terakhir')
@@ -56,6 +59,7 @@ it('stores hr participant profile and discards those fields for business quizzes
     [, $hrLink] = createProfileQuizLink('hr', 'hr-profile-save-token');
 
     Livewire::test(QuizStart::class, ['token' => $hrLink->token])
+        ->set('participantCvEmail', 'BUDI@EXAMPLE.COM')
         ->set('participantName', 'Budi')
         ->set('participantAppliedFor', 'HR Generalist')
         ->set('participantAge', '28')
@@ -70,6 +74,7 @@ it('stores hr participant profile and discards those fields for business quizzes
 
     $this->assertDatabaseHas('quiz_attempts', [
         'quiz_link_id' => $hrLink->id,
+        'participant_cv_email' => 'budi@example.com',
         'participant_applied_for' => 'HR Generalist',
         'participant_age' => 28,
         'participant_height_cm' => 172.5,
@@ -85,6 +90,7 @@ it('stores hr participant profile and discards those fields for business quizzes
     [, $businessLink] = createProfileQuizLink('business', 'business-profile-save-token');
 
     Livewire::test(QuizStart::class, ['token' => $businessLink->token])
+        ->set('participantCvEmail', 'injected@example.com')
         ->set('participantName', 'Siti')
         ->set('participantAppliedFor', 'Sales')
         ->set('participantAge', '30')
@@ -101,7 +107,8 @@ it('stores hr participant profile and discards those fields for business quizzes
         ->where('quiz_link_id', $businessLink->id)
         ->firstOrFail();
 
-    expect($businessAttempt->participant_age)->toBeNull()
+    expect($businessAttempt->participant_cv_email)->toBeNull()
+        ->and($businessAttempt->participant_age)->toBeNull()
         ->and($businessAttempt->participant_last_job)->toBeNull()
         ->and($businessAttempt->participant_last_job_started_at)->toBeNull()
         ->and($businessAttempt->participant_current_domicile)->toBeNull();
@@ -116,6 +123,7 @@ it('includes hr participant profile in discord and pdf output', function () {
         'quiz_id' => $quiz->id,
         'participant_name' => 'Budi',
         'participant_applied_for' => 'HR Generalist',
+        'participant_cv_email' => 'budi@example.com',
         'participant_age' => 28,
         'participant_height_cm' => 172.5,
         'participant_weight_kg' => 68.5,
@@ -151,7 +159,8 @@ it('includes hr participant profile in discord and pdf output', function () {
         $fields = collect($request->data()['embeds'][0]['fields'] ?? [])
             ->mapWithKeys(fn (array $field) => [$field['name'] => $field['value']]);
 
-        return $fields->get('Usia') === '28 tahun'
+        return $fields->get('Email yang Tercantum di CV') === 'budi@example.com'
+            && $fields->get('Usia') === '28 tahun'
             && $fields->get('Tinggi / Berat') === '172.50 cm / 68.50 kg'
             && $fields->get('Pekerjaan Terakhir') === 'HR Generalist'
             && $fields->get('Perusahaan Terakhir') === 'PT Lama'
@@ -169,6 +178,8 @@ it('includes hr participant profile in discord and pdf output', function () {
     ])->render();
 
     expect($html)->toContain('Usia')
+        ->and($html)->toContain('Email yang Tercantum di CV')
+        ->and($html)->toContain('budi@example.com')
         ->and($html)->toContain('Posisi yang Dilamar')
         ->and($html)->toContain('28 tahun')
         ->and($html)->toContain('172.50 cm')

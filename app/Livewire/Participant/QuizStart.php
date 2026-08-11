@@ -26,6 +26,8 @@ class QuizStart extends Component
 
     public string $finalMessage = '';
 
+    public string $participantCvEmail = '';
+
     public string $participantName = '';
 
     public string $participantAppliedFor = '';
@@ -281,6 +283,7 @@ class QuizStart extends Component
 
         if ($this->isHrQuiz) {
             $rules += [
+                'participantCvEmail' => ['required', 'email:rfc', 'max:255'],
                 'participantAge' => ['required', 'integer', 'min:15', 'max:100'],
                 'participantHeightCm' => ['required', 'numeric', 'min:50', 'max:250'],
                 'participantWeightKg' => ['required', 'numeric', 'min:20', 'max:300'],
@@ -292,6 +295,7 @@ class QuizStart extends Component
         }
 
         $this->validate($rules, [], [
+            'participantCvEmail' => 'Email yang Tercantum di CV',
             'participantName' => 'Nama Peserta',
             'participantAppliedFor' => 'Posisi yang Dilamar',
             'participantAge' => 'Usia',
@@ -314,6 +318,7 @@ class QuizStart extends Component
         return [
             'participant_name' => trim($this->participantName),
             'participant_applied_for' => $this->participantAppliedFor,
+            'participant_cv_email' => $isHrQuiz ? mb_strtolower(trim($this->participantCvEmail)) : null,
             'participant_age' => $isHrQuiz ? (int) $this->participantAge : null,
             'participant_height_cm' => $isHrQuiz ? (float) $this->participantHeightCm : null,
             'participant_weight_kg' => $isHrQuiz ? (float) $this->participantWeightKg : null,
@@ -326,6 +331,7 @@ class QuizStart extends Component
 
     private function fillProfileFromAttempt(QuizAttempt $attempt): void
     {
+        $this->participantCvEmail = (string) ($attempt->participant_cv_email ?? '');
         $this->participantAge = $attempt->participant_age !== null ? (string) $attempt->participant_age : '';
         $this->participantHeightCm = $attempt->participant_height_cm !== null ? (string) $attempt->participant_height_cm : '';
         $this->participantWeightKg = $attempt->participant_weight_kg !== null ? (string) $attempt->participant_weight_kg : '';

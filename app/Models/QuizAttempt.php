@@ -14,6 +14,7 @@ class QuizAttempt extends Model
         'quiz_id',
         'participant_name',
         'participant_applied_for',
+        'participant_cv_email',
         'participant_age',
         'participant_height_cm',
         'participant_weight_kg',

@@ -104,6 +104,7 @@ class DiscordResultWebhookService
                 'quizzes.division as quiz_division',
                 'quiz_attempts.participant_name',
                 'quiz_attempts.participant_applied_for',
+                'quiz_attempts.participant_cv_email',
                 'quiz_attempts.participant_age',
                 'quiz_attempts.participant_height_cm',
                 'quiz_attempts.participant_weight_kg',
@@ -206,6 +207,10 @@ class DiscordResultWebhookService
                 : '-';
 
             array_splice($fields, 2, 0, [[
+                'name' => 'Email yang Tercantum di CV',
+                'value' => (string) ($row->participant_cv_email ?: '-'),
+                'inline' => false,
+            ], [
                 'name' => 'Usia',
                 'value' => $age,
                 'inline' => true,

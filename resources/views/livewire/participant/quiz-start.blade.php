@@ -52,6 +52,15 @@
         </div>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            @if ($isHrQuiz)
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium mb-1">Email yang Tercantum di CV</label>
+                    <input type="email" inputmode="email" autocomplete="email" wire:model.defer="participantCvEmail" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />
+                    @error('participantCvEmail')
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</div>
+                    @enderror
+                </div>
+            @endif
             <div>
                 <label class="block text-sm font-medium mb-1">{{ $isHrQuiz ? 'Nama' : 'Nama Peserta' }}</label>
                 <input wire:model.defer="participantName" class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm dark:border-zinc-700 dark:bg-zinc-950" />

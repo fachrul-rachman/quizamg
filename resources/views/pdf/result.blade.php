@@ -90,6 +90,9 @@
       <div class="rj-profile">
         <table>
           <tr>
+            <td colspan="3"><span class="plbl">Email yang Tercantum di CV</span><span class="pval">{{ $attempt->participant_cv_email ?: '-' }}</span></td>
+          </tr>
+          <tr>
             <td><span class="plbl">Usia</span><span class="pval">{{ $attempt->participant_age !== null ? $attempt->participant_age.' tahun' : '-' }}</span></td>
             <td><span class="plbl">Tinggi Badan</span><span class="pval">{{ $attempt->participant_height_cm !== null ? number_format((float) $attempt->participant_height_cm, 2, '.', '').' cm' : '-' }}</span></td>
             <td><span class="plbl">Berat Badan</span><span class="pval">{{ $attempt->participant_weight_kg !== null ? number_format((float) $attempt->participant_weight_kg, 2, '.', '').' kg' : '-' }}</span></td>

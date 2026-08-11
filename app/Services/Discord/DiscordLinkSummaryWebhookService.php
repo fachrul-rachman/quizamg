@@ -155,6 +155,7 @@ class DiscordLinkSummaryWebhookService
             ->select([
                 'quiz_attempts.participant_name',
                 'quiz_attempts.participant_applied_for',
+                'quiz_attempts.participant_cv_email',
                 'quiz_attempts.participant_age',
                 'quiz_attempts.participant_height_cm',
                 'quiz_attempts.participant_weight_kg',
@@ -204,6 +205,7 @@ class DiscordLinkSummaryWebhookService
                 $lines[] = '  Posisi yang Dilamar: '.(string) ($r->participant_applied_for ?: '-');
 
                 if ((string) $link->quiz_division === 'hr') {
+                    $lines[] = '  Email CV: '.(string) ($r->participant_cv_email ?: '-');
                     $age = $r->participant_age !== null ? (int) $r->participant_age.' th' : '-';
                     $height = $r->participant_height_cm !== null ? number_format((float) $r->participant_height_cm, 2, '.', '').' cm' : '-';
                     $weight = $r->participant_weight_kg !== null ? number_format((float) $r->participant_weight_kg, 2, '.', '').' kg' : '-';
