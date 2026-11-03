@@ -4,7 +4,9 @@
         initialSeconds: @js($secondsRemaining),
         deadlineIso: @js($deadlineAtIso),
     })"
+    x-on:participant-quiz-auto-advance.window="advanceAfterFeedback()"
 >
+    <div wire:offline role="alert" class="mb-4 rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">Koneksi internet terputus. Periksa koneksi sebelum melanjutkan.</div>
     @if ($state === 'invalid')
         <h1 class="text-xl font-semibold">Link Quiz Tidak Valid</h1>
         <div class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Link yang Anda buka tidak ditemukan atau sudah tidak berlaku. Periksa kembali link dari admin.</div>
@@ -68,6 +70,12 @@
                 shortAnswer: @js($shortAnswerText),
             })"
         >
+            <div x-show="requestFailed" x-cloak role="alert" class="mb-4 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900">
+                Koneksi terputus atau jawaban belum terkirim. Periksa internet Anda, lalu coba lagi.
+            </div>
+            @error('step')
+                <div role="alert" class="mb-4 text-sm text-rose-800">{{ $message }}</div>
+            @enderror
             @if (!empty($skippedQuestionButtons))
                 <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
                     <div class="text-sm font-semibold text-amber-950 dark:text-amber-100">Soal di-skip</div>
@@ -202,6 +210,8 @@
                     <button
                         type="button"
                         wire:click="skipCurrent"
+                        wire:loading.attr="disabled"
+                        wire:target="skipCurrent,answerCurrent,advanceAfterInstantFeedback"
                         @disabled($pendingAutoAdvance)
                         class="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800/40"
                     >
@@ -210,11 +220,14 @@
                     <button
                         type="button"
                         x-on:click="submitAnswer('{{ $currentQuestionType }}')"
-                        x-bind:disabled="!canAnswer('{{ $currentQuestionType }}')"
+                        x-bind:disabled="sending || !canAnswer('{{ $currentQuestionType }}')"
                         class="rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50 disabled:hover:bg-blue-900"
                     >
                         Jawab
                     </button>
+                    @if ($pendingAutoAdvance)
+                        <button type="button" wire:click="advanceAfterInstantFeedback" wire:loading.attr="disabled" wire:target="advanceAfterInstantFeedback" class="rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Lanjut</button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -226,6 +239,8 @@
                     deadlineIso: config.deadlineIso || null,
                     timerHandle: null,
                     expiryNotified: false,
+                    expiryPending: false,
+                    advancePending: false,
                     init() {
                         if (!this.deadlineIso) {
                             return;
@@ -247,12 +262,13 @@
                         const remaining = Math.max(0, Math.floor((deadlineMs - Date.now()) / 1000));
                         this.secondsRemaining = remaining;
 
-                        if (remaining === 0 && !this.expiryNotified) {
-                            this.expiryNotified = true;
-                            if (this.timerHandle) {
-                                window.clearInterval(this.timerHandle);
-                            }
-                            this.$wire.tick();
+                        if (remaining === 0 && !this.expiryNotified && !this.expiryPending && navigator.onLine) {
+                            this.expiryPending = true;
+                            this.$wire.tick().then(() => {
+                                this.expiryNotified = true;
+                            }).catch(() => {
+                                this.expiryPending = false;
+                            });
                         }
                     },
                     timerDisplay() {
@@ -266,6 +282,19 @@
                         }
 
                         return [minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+                    },
+                    advanceAfterFeedback() {
+                        window.setTimeout(async () => {
+                            if (this.advancePending || !navigator.onLine) return;
+                            this.advancePending = true;
+                            try {
+                                await this.$wire.advanceAfterInstantFeedback();
+                            } catch (error) {
+                                // The Lanjut button remains available for a manual retry.
+                            } finally {
+                                this.advancePending = false;
+                            }
+                        }, 900);
                     },
                     timerClass(defaultClass) {
                         if (this.secondsRemaining > 0 && this.secondsRemaining <= 60) {
@@ -287,6 +316,8 @@
                     currentAnswerLocked: !! config.isLocked,
                     selectedOptionLocal: config.selectedOption || null,
                     shortAnswerLocal: config.shortAnswer || '',
+                    sending: false,
+                    requestFailed: false,
                     canAnswer(questionType) {
                         if (this.currentAnswerLocked) {
                             return false;
@@ -303,23 +334,23 @@
                             return false;
                         }
 
-                        if (questionType === 'multiple_choice') {
-                            await this.$wire.answerCurrent(Number(this.selectedOptionLocal), null);
-                        } else {
-                            await this.$wire.answerCurrent(null, this.shortAnswerLocal);
+                        this.sending = true;
+                        this.requestFailed = false;
+                        try {
+                            if (questionType === 'multiple_choice') {
+                                await this.$wire.answerCurrent(Number(this.selectedOptionLocal), null);
+                            } else {
+                                await this.$wire.answerCurrent(null, this.shortAnswerLocal);
+                            }
+                        } catch (error) {
+                            this.requestFailed = true;
+                        } finally {
+                            this.sending = false;
                         }
                     },
                 };
             }
 
-            if (!window.__participantQuizAutoAdvanceBound) {
-                window.__participantQuizAutoAdvanceBound = true;
-                window.addEventListener('participant-quiz-auto-advance', () => {
-                    window.setTimeout(() => {
-                        try { @this.call('advanceAfterInstantFeedback'); } catch (e) {}
-                    }, 900);
-                });
-            }
         </script>
     @endif
 </div>

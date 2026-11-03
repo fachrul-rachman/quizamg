@@ -1,4 +1,5 @@
 <div class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div wire:offline role="alert" class="mb-4 rounded-md border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">Koneksi internet terputus. Periksa koneksi sebelum melanjutkan.</div>
     @if ($state === 'invalid')
         <h1 class="text-xl font-semibold">Link Quiz Tidak Valid</h1>
         <div class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">Link yang Anda buka tidak ditemukan atau sudah tidak berlaku. Periksa kembali link dari admin.</div>
@@ -129,12 +130,13 @@
         </div>
 
         <div class="mt-5 flex items-center gap-2">
-            <button type="button" wire:click="startTest" class="rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800">
+            <button type="button" wire:click="startTest" wire:loading.attr="disabled" wire:target="startTest,saveIdentity" class="rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">
                 Mulai Test
             </button>
-            <button type="button" wire:click="saveIdentity" class="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800/40">
+            <button type="button" wire:click="saveIdentity" wire:loading.attr="disabled" wire:target="startTest,saveIdentity" class="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800/40">
                 Simpan Identitas
             </button>
         </div>
+        <div wire:loading wire:target="startTest,saveIdentity" role="status" class="mt-3 text-sm text-zinc-600">Sedang menyimpan, mohon tunggu.</div>
     @endif
 </div>

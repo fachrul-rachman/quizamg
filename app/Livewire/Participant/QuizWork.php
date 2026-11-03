@@ -2,19 +2,17 @@
 
 namespace App\Livewire\Participant;
 
+use App\Jobs\DeliverQuizResult;
 use App\Models\AttemptAnswer;
 use App\Models\QuizAttempt;
 use App\Models\QuizLink;
 use App\Models\QuizResult;
-use App\Services\Discord\DiscordResultWebhookService;
 use App\Services\GradeService;
-use App\Services\Pdf\ResultPdfService;
 use App\Services\QuizAttemptSnapshotService;
 use App\Support\DeterministicShuffle;
 use App\Support\QuestionDifficulty;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -88,8 +86,6 @@ class QuizWork extends Component
 
     /** @var array<int, array{question_id:int, step:int}> */
     public array $skippedQuestionButtons = [];
-
-    private bool $suppressInstantFeedbackLock = false;
 
     /** @var array<string, mixed>|null */
     private ?array $snapshotCache = null;
@@ -219,23 +215,6 @@ class QuizWork extends Component
         }
     }
 
-    public function updatedSelectedOptionId(): void
-    {
-        if ($this->suppressInstantFeedbackLock) {
-            return;
-        }
-
-        if ($this->currentAnswerLocked && $this->lockedSelectedOptionId !== null) {
-            $this->suppressInstantFeedbackLock = true;
-            $this->selectedOptionId = (int) $this->lockedSelectedOptionId;
-            $this->suppressInstantFeedbackLock = false;
-
-            return;
-        }
-
-        $this->lockCurrentMultipleChoiceAnswer();
-    }
-
     public function answerCurrent(?int $selectedOptionId = null, ?string $shortAnswerText = null): void
     {
         $this->expireAttemptIfMultiUseLinkExpired();
@@ -244,24 +223,38 @@ class QuizWork extends Component
         }
 
         if (! $this->currentQuestionId || ! $this->currentQuestionType) {
-            return;
+            throw ValidationException::withMessages(['step' => 'Soal tidak tersedia. Muat ulang halaman.']);
         }
 
         if ($this->attemptId <= 0) {
-            return;
+            throw ValidationException::withMessages(['step' => 'Sesi test tidak ditemukan. Muat ulang halaman.']);
         }
 
         $attempt = QuizAttempt::query()->find($this->attemptId);
         if (! $attempt || (int) $attempt->quiz_link_id !== (int) $this->linkId) {
-            return;
+            throw ValidationException::withMessages(['step' => 'Sesi test tidak valid. Muat ulang halaman.']);
         }
 
         if ($attempt->status !== 'in_progress') {
+            $this->redirect('/quiz/'.$this->token.'/done', navigate: false);
+
             return;
         }
 
         $this->secondsRemaining = $this->calculateSecondsRemaining($attempt);
         if ($this->secondsRemaining <= 0) {
+            $this->finalizeAutoIfNeeded();
+
+            return;
+        }
+
+        $existingAnswer = AttemptAnswer::query()
+            ->where('quiz_attempt_id', $attempt->id)
+            ->where('question_id', $this->currentQuestionId)
+            ->first();
+        if ($existingAnswer && ($existingAnswer->selected_option_id || filled($existingAnswer->answer_text))) {
+            $this->goToNextWorkStepOrFinalize();
+
             return;
         }
 
@@ -345,6 +338,18 @@ class QuizWork extends Component
 
         $this->secondsRemaining = $this->calculateSecondsRemaining($attempt);
         if ($this->secondsRemaining <= 0) {
+            $this->finalizeAutoIfNeeded();
+
+            return;
+        }
+
+        $existingAnswer = AttemptAnswer::query()
+            ->where('quiz_attempt_id', $attempt->id)
+            ->where('question_id', $this->currentQuestionId)
+            ->first();
+        if ($existingAnswer && ($existingAnswer->selected_option_id || filled($existingAnswer->answer_text))) {
+            $this->goToNextWorkStepOrFinalize();
+
             return;
         }
 
@@ -359,9 +364,7 @@ class QuizWork extends Component
             ],
         );
 
-        $this->suppressInstantFeedbackLock = true;
         $this->selectedOptionId = null;
-        $this->suppressInstantFeedbackLock = false;
         $this->shortAnswerText = '';
         $this->currentAnswerIsCorrect = null;
         $this->currentAnswerLocked = false;
@@ -416,8 +419,8 @@ class QuizWork extends Component
             return;
         }
 
-        $this->pendingAutoAdvance = false;
         $this->goToNextWorkStepOrFinalize();
+        $this->pendingAutoAdvance = false;
     }
 
     private function goToNextWorkStepOrFinalize(): void
@@ -594,9 +597,7 @@ class QuizWork extends Component
             ->where('question_id', $this->currentQuestionId)
             ->first();
 
-        $this->suppressInstantFeedbackLock = true;
         $this->selectedOptionId = $answer?->selected_option_id ? (int) $answer->selected_option_id : null;
-        $this->suppressInstantFeedbackLock = false;
         $this->shortAnswerText = (string) ($answer?->answer_text ?? '');
 
         $this->currentOptions = [];
@@ -640,64 +641,6 @@ class QuizWork extends Component
             }
         }
 
-        $this->dispatch(
-            'participant-question-loaded',
-            questionId: $this->currentQuestionId,
-            questionType: $this->currentQuestionType,
-            selectedOptionId: $this->selectedOptionId,
-            shortAnswerText: $this->shortAnswerText,
-            isLocked: $this->currentAnswerLocked,
-        );
-    }
-
-    private function lockCurrentMultipleChoiceAnswer(): void
-    {
-        $this->expireAttemptIfMultiUseLinkExpired();
-        if ($this->state === 'expired') {
-            return;
-        }
-
-        if (! $this->instantFeedbackEnabled || $this->currentQuestionType !== 'multiple_choice' || ! $this->currentQuestionId) {
-            return;
-        }
-
-        if (! $this->selectedOptionId || $this->currentAnswerLocked) {
-            return;
-        }
-
-        $attempt = QuizAttempt::query()->find($this->attemptId);
-        if (! $attempt || (int) $attempt->quiz_link_id !== (int) $this->linkId) {
-            return;
-        }
-
-        if ($attempt->status !== 'in_progress') {
-            return;
-        }
-
-        $this->secondsRemaining = $this->calculateSecondsRemaining($attempt);
-        if ($this->secondsRemaining <= 0) {
-            return;
-        }
-
-        $selectedOptionId = (int) $this->selectedOptionId;
-        $correctOptionId = (int) ($this->currentCorrectOptionId ?? 0);
-        $isCorrect = $selectedOptionId !== 0 && $selectedOptionId === $correctOptionId;
-
-        AttemptAnswer::updateOrCreate(
-            ['quiz_attempt_id' => $attempt->id, 'question_id' => $this->currentQuestionId],
-            [
-                'selected_option_id' => $selectedOptionId,
-                'answer_text' => null,
-                'is_correct' => $isCorrect,
-                'answered_at' => now(),
-                'skipped_at' => null,
-            ],
-        );
-
-        $this->currentAnswerLocked = true;
-        $this->currentAnswerIsCorrect = $isCorrect;
-        $this->lockedSelectedOptionId = $selectedOptionId;
-        $this->refreshProgress();
     }
 
     private function finalizeAutoIfNeeded(): void
@@ -873,31 +816,7 @@ class QuizWork extends Component
         });
 
         if ($resultId) {
-            try {
-                app(ResultPdfService::class)->generateForResultId($resultId);
-            } catch (\Throwable $e) {
-                Log::error('result pdf generation threw', [
-                    'quiz_result_id' => $resultId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            try {
-                $attempt = QuizAttempt::query()
-                    ->with('quizLink:id,usage_type')
-                    ->where('id', $this->attemptId)
-                    ->first(['id', 'quiz_link_id']);
-
-                $isMulti = (bool) ($attempt?->quizLink && (string) $attempt->quizLink->usage_type === 'multi');
-                if (! $isMulti) {
-                    app(DiscordResultWebhookService::class)->sendForResultId($resultId);
-                }
-            } catch (\Throwable $e) {
-                Log::error('discord webhook send failed', [
-                    'quiz_result_id' => $resultId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
+            DeliverQuizResult::dispatch($resultId, $this->attemptId);
         }
     }
 

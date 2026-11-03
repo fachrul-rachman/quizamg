@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\DeliverQuizResult;
 use App\Livewire\Participant\QuizWork;
 use App\Models\AttemptAnswer;
 use App\Models\Question;
@@ -8,9 +9,11 @@ use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\QuizLink;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 it('locks multiple choice answer after first selection when instant feedback is enabled', function () {
+    Queue::fake();
     $admin = User::factory()->create(['role' => 'admin']);
 
     $quiz = Quiz::query()->create([
@@ -79,11 +82,11 @@ it('locks multiple choice answer after first selection when instant feedback is 
 
     Livewire::test(QuizWork::class, ['token' => $link->token])
         ->assertSet('state', 'work')
-        ->set('selectedOptionId', $wrongOption->id)
+        ->call('answerCurrent', $wrongOption->id, null)
         ->assertSet('currentAnswerLocked', true)
         ->assertSet('currentAnswerIsCorrect', false)
         ->assertSet('selectedOptionId', $wrongOption->id)
-        ->set('selectedOptionId', $correctOption->id)
+        ->call('answerCurrent', $correctOption->id, null)
         ->assertSet('selectedOptionId', $wrongOption->id)
         ->assertSet('currentAnswerLocked', true);
 
@@ -95,6 +98,7 @@ it('locks multiple choice answer after first selection when instant feedback is 
     expect($answer)->not->toBeNull();
     expect($answer->selected_option_id)->toBe($wrongOption->id);
     expect((bool) $answer->is_correct)->toBeFalse();
+    Queue::assertPushed(DeliverQuizResult::class, 1);
 });
 
 it('accepts multiple choice option passed directly when answering current question', function () {

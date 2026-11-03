@@ -85,7 +85,7 @@ it('accepts short answer passed directly when answering current question', funct
     expect($answer->answer_text)->toBe('ok');
 });
 
-it('dispatches question-loaded event when moving to the next question', function () {
+it('loads the next question after saving an answer', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     [$quiz, $questions] = createSkippedNavigationQuiz($admin, 2);
     $link = createSkippedNavigationLinkAndAttempt($quiz, $admin);
@@ -94,11 +94,30 @@ it('dispatches question-loaded event when moving to the next question', function
         ->assertSet('state', 'work')
         ->call('answerCurrent', null, 'ok')
         ->assertSet('step', 2)
-        ->assertDispatched('participant-question-loaded', function ($event, $params) use ($questions) {
-            return (int) ($params['questionId'] ?? 0) === (int) $questions[1]->id
-                && ($params['questionType'] ?? null) === 'short_answer'
-                && ($params['shortAnswerText'] ?? null) === '';
-        });
+        ->assertSet('currentQuestionId', $questions[1]->id)
+        ->assertSet('currentQuestionType', 'short_answer')
+        ->assertSet('shortAnswerText', '');
+});
+
+it('does not replace an already saved answer when a stale page sends skip', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    [$quiz, $questions] = createSkippedNavigationQuiz($admin, 2);
+    $link = createSkippedNavigationLinkAndAttempt($quiz, $admin);
+
+    $stalePage = Livewire::test(QuizWork::class, ['token' => $link->token]);
+    Livewire::test(QuizWork::class, ['token' => $link->token])
+        ->call('answerCurrent', null, 'ok')
+        ->assertSet('step', 2);
+
+    $stalePage->call('skipCurrent')->assertSet('step', 2);
+
+    $answer = AttemptAnswer::query()
+        ->where('quiz_attempt_id', QuizAttempt::query()->where('quiz_link_id', $link->id)->value('id'))
+        ->where('question_id', $questions[0]->id)
+        ->firstOrFail();
+
+    expect($answer->answer_text)->toBe('ok');
+    expect($answer->skipped_at)->toBeNull();
 });
 
 /**

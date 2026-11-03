@@ -195,7 +195,9 @@ class QuizStart extends Component
         $link = $this->getLinkOrFail();
 
         if (! in_array($link->status, ['unused', 'opened'], true)) {
-            return;
+            throw ValidationException::withMessages([
+                'participantName' => 'Link ini tidak dapat memulai test. Muat ulang halaman atau hubungi admin.',
+            ]);
         }
 
         $this->validateIdentity($link);
@@ -226,7 +228,9 @@ class QuizStart extends Component
                 $this->setAttemptSession($link, (int) $attempt->id);
             } else {
                 if ($attempt->status !== 'not_started') {
-                    return;
+                    throw ValidationException::withMessages([
+                        'participantName' => 'Test sudah dimulai. Muat ulang halaman untuk melanjutkan.',
+                    ]);
                 }
 
                 $attempt->update(array_merge($identity, [
@@ -242,7 +246,9 @@ class QuizStart extends Component
         } else {
             $attempt = QuizAttempt::query()->where('quiz_link_id', $link->id)->first();
             if ($attempt && $attempt->status !== 'not_started') {
-                return;
+                throw ValidationException::withMessages([
+                    'participantName' => 'Test sudah dimulai. Muat ulang halaman untuk melanjutkan.',
+                ]);
             }
 
             if (! $attempt) {
