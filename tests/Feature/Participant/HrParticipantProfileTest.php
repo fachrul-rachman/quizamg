@@ -41,7 +41,7 @@ it('shows and requires additional participant fields only for hr quizzes', funct
 
     Livewire::test(QuizStart::class, ['token' => $businessLink->token])
         ->assertSee('Pastikan internet Anda stabil sebelum mengerjakan test. Test tidak dapat diulang.')
-        ->assertSee('Posisi yang Dilamar')
+        ->assertSee('>Posisi</label>', escape: false)
         ->assertDontSee('Email yang Tercantum di CV')
         ->assertDontSee('Usia')
         ->assertDontSee('Tinggi Badan')
